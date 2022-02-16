@@ -14,7 +14,7 @@ private:
     char * mData = nullptr;
 
 public:
-    cMemory(int capacity) {
+    explicit cMemory(int capacity) {
         mCapacity = capacity;
         mSize = 0;
         mData = new char[capacity];
@@ -42,7 +42,7 @@ void cMemory::PrintStat() const {
 char *cMemory::New(int size) {
     char * mem = nullptr;
     if (mSize + size >= mCapacity) {
-        printf("Critical error: cMemory::new(): There is not memory.\n");
+        printf("Critical error: cMemory::new(): There is not enough memory.\n");
         mem = nullptr;
     } else {
         mem = mData + mSize;

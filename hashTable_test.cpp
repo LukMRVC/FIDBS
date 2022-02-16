@@ -4,6 +4,7 @@
 
 #include "cHeapTable.h"
 #include "cHashTable.h"
+#include "cMemory.h"
 
 #define TKey int
 #define TData int
@@ -29,12 +30,12 @@ int main()
 
 float GetThroughput(int opsCount, float period, int unit)
 {
-	return ((float)opsCount / unit) / period;
+	return ((double)opsCount / unit) / period;
 }
 
 void heapTableTest(const int rowCount)
 {
-	cHeapTable<TKey, TData> *heapTable = new cHeapTable<TKey, TData>(rowCount);
+	auto *heapTable = new cHeapTable<TKey, TData>(rowCount);
 
 	TKey key;
 	TData data;
@@ -99,7 +100,8 @@ void heapTableTest(const int rowCount)
 
 void hashTableTest(const int rowCount)
 {
-	cHashTable<TKey, TData> *hashTable = new cHashTable<TKey, TData>(rowCount / 2);
+    auto *memory = new cMemory((rowCount + 1) * sizeof (cHashTableNode<TKey, TData>));
+	auto *hashTable = new cHashTable<TKey, TData>(rowCount / 2, memory);
 
 	TKey key;
 	TData data;
@@ -129,7 +131,8 @@ void hashTableTest(const int rowCount)
 
 	auto t2 = high_resolution_clock::now();
 	auto time_span = duration_cast<duration<double>>(t2 - t1);
-	printf("Records insertion done, HashTable. Time: %.2fs, Throughput: %.2f mil. op/s.\n", time_span.count(), GetThroughput(rowCount, time_span.count()));
+	printf("Records insertion done, HashTable. Time: %.2fs, Throughput: %.2f mil. op/s.\n",
+           time_span.count(), GetThroughput(rowCount, time_span.count()));
 
 	// start scan hash table
 	t1 = high_resolution_clock::now();

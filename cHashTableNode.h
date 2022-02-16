@@ -16,7 +16,7 @@ public:
 	cHashTableNode();
 	~cHashTableNode();
 
-	bool Add(const TKey &key, const TData &data, int &itemCount, int &nodeCount);
+    bool Add(const TKey &key, const TData &data, cMemory * memory, int &itemCount, int &nodeCount);
 	bool Find(const TKey &key, TData &data) const;
 };
 
@@ -38,7 +38,7 @@ cHashTableNode<TKey, TData>::~cHashTableNode()
 }
 
 template<class TKey, class TData>
-bool cHashTableNode<TKey, TData>::Add(const TKey &key, const TData &data, int &itemCount, int &nodeCount)
+bool cHashTableNode<TKey, TData>::Add(const TKey &key, const TData &data, cMemory *memory, int &itemCount, int &nodeCount)
 {
 	bool ret = true;
 
@@ -48,10 +48,15 @@ bool cHashTableNode<TKey, TData>::Add(const TKey &key, const TData &data, int &i
 		}
 		else {
 			if (mNextNode == nullptr) {
-				mNextNode = new cHashTableNode<TKey, TData>();
+                if (memory == nullptr) {
+                    mNextNode = new cHashTableNode<TKey, TData>();
+                } else {
+                    auto mem = memory->New(sizeof (cHashTableNode<TKey, TData>));
+                    mNextNode = new (mem)cHashTableNode<TKey, TData>();
+                }
 				nodeCount++;
 			}
-			ret = mNextNode->Add(key, data, itemCount, nodeCount);
+			ret = mNextNode->Add(key, data, memory, itemCount, nodeCount);
 		}
 	}
 	else {
@@ -59,7 +64,6 @@ bool cHashTableNode<TKey, TData>::Add(const TKey &key, const TData &data, int &i
 		mData = data;
 		mEmptyNode = false;
 		itemCount++;
-
 		ret = true;
 	}
 	return ret;

@@ -5,19 +5,20 @@
 #include "Table.h"
 
 template<class TKey, class TData>
-class cHashTable : public Table<TKey, TData>
+class cHashTable
 {
 private:
 	int mSize;
 	cHashTableNode<TKey,TData>** mHashTable = nullptr;
 	int mItemCount;
 	int mNodeCount;
+    cMemory *mMemory = nullptr;
 
 private:
 	inline int HashValue(const TKey &key) const;
 
 public:
-	explicit cHashTable(int size);
+	explicit cHashTable(int size, cMemory *memory);
 	~cHashTable();
 
 	bool Add(const TKey &key, const TData &data);
@@ -26,27 +27,31 @@ public:
 };
 
 template<class TKey, class TData>
-cHashTable<TKey,TData>::cHashTable(int size)
+cHashTable<TKey,TData>::cHashTable(int size, cMemory *memory)
 {
 	mSize = size;
 	mHashTable = new cHashTableNode<TKey,TData>*[size];
-	for (int i = 0; i < mSize; i++)
-	{
+	for (int i = 0; i < mSize; i++) {
 		mHashTable[i] = nullptr;
 	}
+    mMemory = memory;
 }
 
 template<class TKey, class TData>
 cHashTable<TKey, TData>::~cHashTable()
 {
-	if (mHashTable != nullptr) {
-        for (int i = 0; i < mNodeCount; ++i) {
-            delete mHashTable[i];
-            mHashTable[i] = nullptr;
+    if (mMemory == nullptr) {
+        if (mHashTable != nullptr) {
+            for (int i = 0; i < mSize; ++i) {
+                if (mHashTable[i] != nullptr) {
+                    delete mHashTable[i];
+                    mHashTable[i] = nullptr;
+                }
+            }
         }
-        delete [] mHashTable;
-        mHashTable = nullptr;
     }
+    delete [] mHashTable;
+    mHashTable = nullptr;
 }
 
 template<class TKey, class TData>
@@ -56,11 +61,17 @@ bool cHashTable<TKey, TData>::Add(const TKey &key, const TData &data)
 
 	if (mHashTable[hv] == nullptr)
 	{
-		mHashTable[hv] = new cHashTableNode<TKey, TData>();
-		mNodeCount++;
-	}
+        // mMemory is not accessible
+        if (mMemory == nullptr) {
+            mHashTable[hv] = new cHashTableNode<TKey, TData>();
+        } else { //mMemory was given and we can operate on it
+            auto memForNode = mMemory->New(sizeof(cHashTableNode<TKey, TData>));
+            mHashTable[hv] = new (memForNode)cHashTableNode<TKey, TData>();
+        }
+        mNodeCount++;
+    }
 
-	return mHashTable[hv]->Add(key, data, mItemCount, mNodeCount);
+	return mHashTable[hv]->Add(key, data, mMemory, mItemCount, mNodeCount);
 }
 
 template<class TKey, class TData>
