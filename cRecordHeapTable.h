@@ -70,7 +70,7 @@ bool cRecordHeapTable<TKey, TData>::Add(const TKey &key, const TData &data)
     assert(mCount < mCapacity);
     ret = true;
 
-    mData[mCount] = new Record(key, data);
+    mData[mCount] = new Record<TKey, TData>(key, data);
 
     mCount++;
     return ret;

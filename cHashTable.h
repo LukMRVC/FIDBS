@@ -93,6 +93,6 @@ inline int cHashTable<TKey, TData>::HashValue(const TKey &key) const
 template<class TKey, class TData>
 void cHashTable<TKey, TData>::PrintStat() const
 {
-	printf("HashTable Statistics: Size: %d, ItemCount: %d, NodeCount: %d, Avg. Items/Slot: %.2f.\n",
-		mSize, mItemCount, mNodeCount, (float)mItemCount / mSize);
+	printf("HashTable Statistics: Size: %d, ItemCount: %ld, NodeCount: %ld, Avg. Items/Slot: %.2f.\n",
+		mSize, mItemCount, mNodeCount, (double)mItemCount / mSize);
 }

@@ -58,8 +58,7 @@ bool cHashTableNode<TKey, TData>::Add(const TKey &key, const TData &data, cMemor
 			}
 			ret = mNextNode->Add(key, data, memory, itemCount, nodeCount);
 		}
-	}
-	else {
+	} else {
 		mKey = key;
 		mData = data;
 		mEmptyNode = false;
