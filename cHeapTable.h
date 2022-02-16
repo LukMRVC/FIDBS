@@ -1,10 +1,11 @@
 #pragma once
 
-#include <assert.h>
-#include <stdlib.h>
+#include <cassert>
+#include <cstdlib>
+#include "Table.h"
 
 template<class TKey, class TData>
-class cHeapTable
+class cHeapTable : public Table<TKey, TData>
 {
 private:
 	int mCapacity;
@@ -13,10 +14,10 @@ private:
 	int const mRowSize = sizeof(TKey) + sizeof(TData);
 
 private:
-	inline char* GetRowPointer(int rowId) const;
+	[[nodiscard]] inline char* GetRowPointer(int rowId) const;
 
 public:
-	cHeapTable(int capacity);
+	explicit cHeapTable(int capacity);
 	~cHeapTable();
 
 	bool Add(const TKey &key, const TData &data);
@@ -67,12 +68,27 @@ bool cHeapTable<TKey, TData>::Get(int rowId, TKey &key, TData &data) const
 template<class TKey, class TData>
 bool cHeapTable<TKey, TData>::Add(const TKey &key, const TData &data)
 {
-  // TODO
+    bool ret = false;
+    assert(mCount < mCapacity);
+    ret = true;
+    char * p = GetRowPointer(mCount);
+    *((TKey*)p) = key;
+    *((TData*)(p + sizeof(TKey))) = data;
+
+    mCount += 1;
+    return ret;
 }
 
 template<class TKey, class TData>
 bool cHeapTable<TKey, TData>::Find(const TKey &key, TData &data) const
 {
-  // TODO
+    for (int i = 0; i < mCount; ++i) {
+        char *p = GetRowPointer(i);
+        if (*((TKey*)p) == key) {
+            data = *((TData*)(p + sizeof(TKey)));
+            return true;
+        }
+    }
+    return false;
 }
 

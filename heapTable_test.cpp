@@ -18,8 +18,8 @@ using namespace std::chrono;
 int main() {
     int const RowCount = 10000000;
 
-    Table<TKey, TData> *table = new cRecordHeapTable<TKey, TData>(RowCount);
-//    Table<TKey, TData> *table = new cHeapTable<TKey, TData>(RowCount);
+//    Table<TKey, TData> *table = new cRecordHeapTable<TKey, TData>(RowCount);
+    Table<TKey, TData> *table = new cHeapTable<TKey, TData>(RowCount);
 
     TKey key;
     TData data;

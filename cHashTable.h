@@ -2,13 +2,14 @@
 
 #include "cHashTableNode.h"
 #include "cMemory.h"
+#include "Table.h"
 
 template<class TKey, class TData>
-class cHashTable
+class cHashTable : public Table<TKey, TData>
 {
 private:
 	int mSize;
-	cHashTableNode<TKey,TData>** mHashTable;
+	cHashTableNode<TKey,TData>** mHashTable = nullptr;
 	int mItemCount;
 	int mNodeCount;
 
@@ -16,7 +17,7 @@ private:
 	inline int HashValue(const TKey &key) const;
 
 public:
-	cHashTable(int size);
+	explicit cHashTable(int size);
 	~cHashTable();
 
 	bool Add(const TKey &key, const TData &data);
@@ -31,14 +32,21 @@ cHashTable<TKey,TData>::cHashTable(int size)
 	mHashTable = new cHashTableNode<TKey,TData>*[size];
 	for (int i = 0; i < mSize; i++)
 	{
-		mHashTable[i] = NULL;
+		mHashTable[i] = nullptr;
 	}
 }
 
 template<class TKey, class TData>
 cHashTable<TKey, TData>::~cHashTable()
 {
-	// TODO
+	if (mHashTable != nullptr) {
+        for (int i = 0; i < mNodeCount; ++i) {
+            delete mHashTable[i];
+            mHashTable[i] = nullptr;
+        }
+        delete [] mHashTable;
+        mHashTable = nullptr;
+    }
 }
 
 template<class TKey, class TData>
@@ -46,7 +54,7 @@ bool cHashTable<TKey, TData>::Add(const TKey &key, const TData &data)
 {
 	int hv = HashValue(key);
 
-	if (mHashTable[hv] == NULL)
+	if (mHashTable[hv] == nullptr)
 	{
 		mHashTable[hv] = new cHashTableNode<TKey, TData>();
 		mNodeCount++;
@@ -58,7 +66,11 @@ bool cHashTable<TKey, TData>::Add(const TKey &key, const TData &data)
 template<class TKey, class TData>
 bool cHashTable<TKey, TData>::Find(const TKey &key, TData &data) const
 {
-	// TODO
+	auto hv = HashValue(key);
+    if (mHashTable[hv] == nullptr) {
+        return false;
+    }
+    return mHashTable[hv]->Find(key, data);
 }
 
 template<class TKey, class TData>

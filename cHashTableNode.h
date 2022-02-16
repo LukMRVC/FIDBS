@@ -23,17 +23,17 @@ public:
 template<class TKey, class TData>
 cHashTableNode<TKey, TData>::cHashTableNode()
 {
-	mNextNode = NULL;
+	mNextNode = nullptr;
 	mEmptyNode = true;
 }
 
 template<class TKey, class TData>
 cHashTableNode<TKey, TData>::~cHashTableNode()
 {
-	if (mNextNode != NULL)
+	if (mNextNode != nullptr)
 	{
 		delete mNextNode;
-		mNextNode = NULL;
+		mNextNode = nullptr;
 	}
 }
 
@@ -47,7 +47,7 @@ bool cHashTableNode<TKey, TData>::Add(const TKey &key, const TData &data, int &i
 			ret = false;
 		}
 		else {
-			if (mNextNode == NULL) {
+			if (mNextNode == nullptr) {
 				mNextNode = new cHashTableNode<TKey, TData>();
 				nodeCount++;
 			}
@@ -68,5 +68,15 @@ bool cHashTableNode<TKey, TData>::Add(const TKey &key, const TData &data, int &i
 template<class TKey, class TData>
 bool cHashTableNode<TKey, TData>::Find(const TKey &key, TData &data) const
 {
-	// TODO
+	if (mKey == key) {
+		data = mData;
+		return true;
+	} else {
+		if (mNextNode == nullptr) {
+			return false;
+		} else {
+			return mNextNode->Find(key, data);
+		}
+	}
+
 }
