@@ -3,6 +3,8 @@
 #include "cHashTableNode.h"
 #include "cMemory.h"
 
+template <class TKey, class TData> class cHashTable;
+
 template<class TKey, class TData>
 class cHashTableNode
 {
@@ -11,6 +13,7 @@ private:
 	TKey mKey;
 	TData mData;
 	cHashTableNode* mNextNode;
+    friend class cHashTable<TKey, TData>;
 
 public:
 	cHashTableNode();

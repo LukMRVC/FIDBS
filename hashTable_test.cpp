@@ -43,22 +43,21 @@ void heapTableTest(const int rowCount)
 	// start insert heap table
 	auto t1 = high_resolution_clock::now();
 
+
 	for (int i = 0; i < rowCount; i++)
 	{
 		key = data = i;
-		if (!heapTable->Add(key, data))
-		{
+		if (!heapTable->Add(key, data)) {
 			printf("Critical Error: Record %d insertion failed!\n", i);
 		}
-		if (i % 10000 == 0)
-		{
+		if (i % 10000 == 0) {
 			printf("#Record inserted: %d   \r", i);
 		}
 	}
 
 	auto t2 = high_resolution_clock::now();
 	duration<double> time_span = duration_cast<duration<double>>(t2 - t1);
-	printf("Records insertion done, HeapTable. Time: %.2fs, Throughput: %.2f mil. op/s.\n", time_span.count(), GetThroughput(rowCount, time_span.count()));
+	printf("Records insertion recursion done, HeapTable. Time: %.2fs, Throughput: %.2f mil. op/s.\n", time_span.count(), GetThroughput(rowCount, time_span.count()));
 
 	// start scan heap table
 	t1 = high_resolution_clock::now();

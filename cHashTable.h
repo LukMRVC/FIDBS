@@ -71,7 +71,32 @@ bool cHashTable<TKey, TData>::Add(const TKey &key, const TData &data)
         mNodeCount++;
     }
 
-	return mHashTable[hv]->Add(key, data, mMemory, mItemCount, mNodeCount);
+    auto nextNodeInChain = mHashTable[hv];
+    while (!nextNodeInChain->mEmptyNode) {
+        if (nextNodeInChain->mKey == key) {
+            return false;
+        }
+        if (nextNodeInChain->mNextNode == nullptr) {
+            if (mMemory == nullptr) {
+                nextNodeInChain->mNextNode = new cHashTableNode<TKey, TData>();
+            } else {
+                auto mem = mMemory->New(sizeof (cHashTableNode<TKey, TData>));
+                nextNodeInChain->mNextNode = new (mem)cHashTableNode<TKey, TData>();
+            }
+            mNodeCount++;
+            nextNodeInChain = nextNodeInChain->mNextNode;
+            break;
+        }
+        nextNodeInChain = nextNodeInChain->mNextNode;
+    }
+
+    nextNodeInChain->mKey = key;
+    nextNodeInChain->mData = data;
+    nextNodeInChain->mEmptyNode = false;
+    mItemCount++;
+    return true;
+
+//    return mHashTable[hv]->Add(key, data, mMemory, mItemCount, mNodeCount);
 }
 
 template<class TKey, class TData>
@@ -81,7 +106,18 @@ bool cHashTable<TKey, TData>::Find(const TKey &key, TData &data) const
     if (mHashTable[hv] == nullptr) {
         return false;
     }
-    return mHashTable[hv]->Find(key, data);
+
+    auto nextNodeInChain = mHashTable[hv];
+    while (nextNodeInChain->mKey != key) {
+        if (nextNodeInChain->mNextNode == nullptr) {
+            return false;
+        }
+        nextNodeInChain = nextNodeInChain->mNextNode;
+    }
+    data = nextNodeInChain->mData;
+    return true;
+
+//    return mHashTable[hv]->Find(key, data);
 }
 
 template<class TKey, class TData>
