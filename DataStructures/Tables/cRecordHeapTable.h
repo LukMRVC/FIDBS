@@ -11,7 +11,7 @@
 
 
 template <class TKey, class TData>
-class cRecordHeapTable : public Table<TKey, TData> {
+class cRecordHeapTable : public AbstractHeapTable<TKey, TData> {
     int mCapacity;
     int mCount;
     int const mRowSize = sizeof (Record<TKey, TData>);

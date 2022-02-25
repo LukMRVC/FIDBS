@@ -5,6 +5,10 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_FLAGS -m64)
 set(CMAKE_GENERATOR_PLATFORM x64)
 
+if (CMAKE_BUILD_TYPE MATCHES Debug)
+    add_definitions(-DDEBUG)
+endif()
+
 list(
         APPEND
         COMMON_CPP_FILES
@@ -34,4 +38,4 @@ add_executable(HashTable
 add_executable(MainTest
 
         ${COMMON_CPP_FILES}
-        main_test.cpp)
+        main_test.cpp tests/memory_access_test.h tests/heap_table_test.h tests/utils.h tests/hash_table_test.h)

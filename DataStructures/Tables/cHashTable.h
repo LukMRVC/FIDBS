@@ -5,7 +5,7 @@
 #include "Table.h"
 
 template<class TKey, class TData>
-class cHashTable
+class cHashTable : public Table<TKey, TData>
 {
 private:
 	int mSize = 0;
@@ -20,6 +20,14 @@ private:
 public:
 	explicit cHashTable(int size, cMemory *memory);
 	~cHashTable();
+
+    // placeholder functions to satisfy inherited methods
+    bool Add(const TKey &key, const TData &data) {
+        return Add(key, data, false);
+    }
+    bool Find(const TKey &key, TData &data) const {
+        return Find(key, data, false);
+    }
 
 	bool Add(const TKey &key, const TData &data, bool recursive = false);
 	bool Find(const TKey &key, TData &data, bool recursive = false) const;

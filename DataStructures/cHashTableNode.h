@@ -74,6 +74,7 @@ __attribute__ ((noinline)) bool cHashTableNode<TKey, TData>::Add(const TKey &key
     return true;
 }
 
+// GCC force noinline attribute
 template<class TKey, class TData>
 __attribute__ ((noinline)) bool cHashTableNode<TKey, TData>::AddRecursive(const TKey &key, const TData &data, cMemory *memory, int &itemCount, int &nodeCount)
 {
@@ -105,6 +106,7 @@ __attribute__ ((noinline)) bool cHashTableNode<TKey, TData>::AddRecursive(const 
     return ret;
 }
 
+// GCC force noinline attribute
 template<class TKey, class TData>
 bool __attribute__ ((noinline)) cHashTableNode<TKey, TData>::Find(const TKey &key, TData &data) const
 {

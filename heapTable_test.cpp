@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <chrono>
 #include <iostream>
+#include <cstdlib>
 
 #include "DataStructures/Tables/cHeapTable.h"
 #include "DataStructures/Tables/Table.h"
@@ -81,16 +82,6 @@ int main() {
     printf("Table sequential scan done. Time: %.2fs, Throughput: %.2f op/s.\n", time_span.count(),
            (float) findRowCount / time_span.count());
 
-
-//    for (long i = 0; i < RowCount; ++i) {
-//        printf("Address of record {%ld}: %p\n", i, ((cRecordHeapTable<TKey, TData> *) table)->mData[i]);
-//        printf("Address of pointer to record {%ld}: %p\n", i, &((cRecordHeapTable<TKey, TData> *) table)->mData[i]);
-//        if (i > 2000) {
-//            break;
-//        }
-//    }
-//    printf("%lu\n", sizeof(Record<TKey, TData>));
-//    printf("%lu\n", sizeof(Record<TKey, TData>*));
 
     delete table;
 

@@ -44,9 +44,8 @@ int main()
     return 0;
 }
 
-float GetThroughput(int opsCount, float period, int unit)
-{
-	return ((double)opsCount / unit) / period;
+float GetThroughput(int opsCount, float period, int unit) {
+	return (((float)opsCount / (float)unit)) / period;
 }
 
 void heapTableTest(const int rowCount)

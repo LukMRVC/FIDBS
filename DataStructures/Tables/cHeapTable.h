@@ -5,7 +5,7 @@
 #include "Table.h"
 
 template<class TKey, class TData>
-class cHeapTable : public Table<TKey, TData>
+class cHeapTable : public AbstractHeapTable<TKey, TData>
 {
 private:
 	int mCapacity;
