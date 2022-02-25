@@ -28,8 +28,8 @@ int main() {
 #endif
     AbstractHeapTable<TKey, TData> *heapTable = nullptr;
     cHashTable<TKey, TData> *hashTable = nullptr;
-//    std::cout << "--------- MEMORY ACCESS TEST ---------" << std::endl;
-//    test_memory_access();
+    std::cout << "--------- MEMORY ACCESS TEST ---------" << std::endl;
+    test_memory_access();
 
     int const RowCount = 10000000;
 
