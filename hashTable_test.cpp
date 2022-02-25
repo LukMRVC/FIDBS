@@ -2,9 +2,9 @@
 #include <chrono>
 #include <iostream>
 
-#include "cHeapTable.h"
-#include "cHashTable.h"
-#include "cMemory.h"
+#include "DataStructures/Tables/cHeapTable.h"
+#include "DataStructures/Tables/cHashTable.h"
+#include "DataStructures/cMemory.h"
 
 #define TKey int
 #define TData int
@@ -14,7 +14,13 @@ using namespace std::chrono;
 
 float GetThroughput(int opsCount, float period, int unit = 10e6);
 void heapTableTest(const int rowCount);
-void hashTableTest(const int rowCount);
+float hashTableTest(const int rowCount, bool recursive = false);
+
+float add_recursive_throughput = 0;
+float add_non_recursive_throughput = 0;
+
+float find_recursive_throughput = 0;
+float find_non_recursive_throughput = 0;
 
 int main()
 {
@@ -22,10 +28,20 @@ int main()
 	heapTableTest(RowCount);
 	printf("\n");
 
-	hashTableTest(RowCount);
-	printf("\n");
 
-	return 0;
+    printf("---------------- RECURSIVE CALLS ----------------\n");
+    for (int i = 0; i < 10; ++i) {
+        hashTableTest(RowCount, true);
+        hashTableTest(RowCount, false);
+    }
+    printf("\n");
+    printf("\n");
+    printf("Average throughput of RECURSIVE ADD: %.2f mil. ops/s.\n", add_recursive_throughput / 10);
+    printf("Average throughput of NON_RECURSIVE ADD: %.2f mil. ops/s.\n", add_non_recursive_throughput / 10);
+
+    printf("Average throughput of RECURSIVE FIND: %.2f mil. ops/s.\n", find_recursive_throughput / 10);
+    printf("Average throughput of NON_RECURSIVE FIND: %.2f mil. ops/s.\n", find_non_recursive_throughput / 10);
+    return 0;
 }
 
 float GetThroughput(int opsCount, float period, int unit)
@@ -97,10 +113,10 @@ void heapTableTest(const int rowCount)
 	delete heapTable;
 }
 
-void hashTableTest(const int rowCount)
+float hashTableTest(const int rowCount, bool recursive)
 {
     auto *memory = new cMemory((rowCount + 1) * sizeof (cHashTableNode<TKey, TData>));
-	auto *hashTable = new cHashTable<TKey, TData>(rowCount / 2, memory);
+	auto *hashTable = new cHashTable<TKey, TData>(rowCount / 20, memory);
 
 	TKey key;
 	TData data;
@@ -110,7 +126,7 @@ void hashTableTest(const int rowCount)
 
 	for (int i = 0; i < rowCount; i++) {
 		key = data = i;
-		if (!hashTable->Add(key, data)) {
+		if (!hashTable->Add(key, data, recursive)) {
 			printf("Critical Error: Record %d insertion failed!\n", i);
 		}
 
@@ -123,36 +139,48 @@ void hashTableTest(const int rowCount)
 		}
 		}*/
 
-		if (i % 10000 == 0) {
-			printf("#Record inserted: %d   \r", i);
-		}
+//		if (i % 10000 == 0) {
+//			printf("#Record inserted: %d   \n", i);
+//		}
 	}
 
 	auto t2 = high_resolution_clock::now();
 	auto time_span = duration_cast<duration<double>>(t2 - t1);
-	printf("Records insertion done, HashTable. Time: %.2fs, Throughput: %.2f mil. op/s.\n",
-           time_span.count(), GetThroughput(rowCount, time_span.count()));
+    auto throughput = GetThroughput(rowCount, time_span.count());
+    printf("Records insertion done, HashTable. Time: %.2fs, Throughput: %.2f mil. op/s.\n",
+           time_span.count(), throughput);
+    if (recursive) {
+        add_recursive_throughput += throughput;
+    } else {
+        add_non_recursive_throughput += throughput;
+    }
 
 	// start scan hash table
 	t1 = high_resolution_clock::now();
 
 	for (int i = 0; i < rowCount; i++)
 	{
-		bool ret = hashTable->Find(i, data);
+		bool ret = hashTable->Find(i, data, recursive);
 		if (!ret || data != i) {
 			printf("Critical Error: Record %d not found!\n", i);
 		}
-		if (i % 10000 == 0)
-		{
-			printf("#Records retrieved: %d   \r", i);
-		}
+//		if (i % 10000 == 0)
+//		{
+//			printf("#Records retrieved: %d   \n", i);
+//		}
 	}
 
 	t2 = high_resolution_clock::now();
 	time_span = duration_cast<duration<double>>(t2 - t1);
-	printf("Table scan done, HashTable. Time: %.2fs, Throughput: %.2f mil. op/s.\n", time_span.count(), GetThroughput(rowCount, time_span.count()));
-
+    throughput = GetThroughput(rowCount, time_span.count());
+	printf("Table scan done, HashTable. Time: %.2fs, Throughput: %.2f mil. op/s.\n", time_span.count(), throughput);
+    if (recursive) {
+        find_recursive_throughput += throughput;
+    } else {
+        find_non_recursive_throughput += throughput;
+    }
 	hashTable->PrintStat();
 
 	delete hashTable;
+    return throughput;
 }

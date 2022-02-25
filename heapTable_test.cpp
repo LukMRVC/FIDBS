@@ -2,10 +2,10 @@
 #include <chrono>
 #include <iostream>
 
-#include "cHeapTable.h"
-#include "Table.h"
-#include "cRecordHeapTable.h"
-#include "Record.h"
+#include "DataStructures/Tables/cHeapTable.h"
+#include "DataStructures/Tables/Table.h"
+#include "DataStructures/Tables/cRecordHeapTable.h"
+#include "DataStructures/Tables/Record.h"
 
 #define TKey int
 #define TData int
