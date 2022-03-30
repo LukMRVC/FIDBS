@@ -17,7 +17,7 @@ private:
     inline char* getRowPointer(unsigned int rowId) const;
 
 public:
-    cRowHeapTable(unsigned int attrsSize[], unsigned int length, unsigned int rowCount);
+    cRowHeapTable(const unsigned int attrsSize[], unsigned int length, unsigned int rowCount);
     ~cRowHeapTable();
 
     bool Insert(char * rec);
@@ -25,7 +25,7 @@ public:
     bool CreateBitmapIndex(unsigned int argsCount);
 };
 
-cRowHeapTable::cRowHeapTable(unsigned int attrsSize[], unsigned int length, unsigned int rowCount) {
+cRowHeapTable::cRowHeapTable(const unsigned int attrsSize[], unsigned int length, unsigned int rowCount) {
     unsigned int size = 0;
     for (int i = 0; i < length; ++i) {
         size += attrsSize[i];
@@ -70,7 +70,7 @@ unsigned int cRowHeapTable::Select(unsigned int conditions[][2], std::size_t siz
 
 
 
-char *cRowHeapTable::getRowPointer(unsigned int rowId) const {
+inline char *cRowHeapTable::getRowPointer(unsigned int rowId) const {
     return mData + (rowId * rowSize);
 }
 
