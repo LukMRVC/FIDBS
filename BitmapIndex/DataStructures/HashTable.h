@@ -29,7 +29,7 @@ public:
     bool Add(const char *, const TData &data, bool recursive = false);
     bool IncrementData(const char *);
     bool Find(const char *, TData &data, bool recursive = false) const;
-    bool Find(char *, Cursor<TData> &) const;
+    bool Find(const char *, Cursor<TData> &) const;
     bool Select(const char *, TData &data) const;
 	void PrintStat() const;
 };
@@ -165,7 +165,6 @@ bool cHashTable<TData>::Find(const char * key, Cursor<TData> & cursor) const {
 
 template<class TData>
 bool cHashTable<TData>::Select(const char *query, TData &data) const {
-
 
     return Find(selectKey, data);
 }

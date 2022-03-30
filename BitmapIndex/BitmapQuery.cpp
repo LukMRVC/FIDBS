@@ -50,13 +50,14 @@ int main(int args_count, char *args[]) {
     std::cout << "Running queries without bitmapIndex" << std::endl;
     // Select
     std::ofstream output("./query_results.txt");
-    auto selectDuration = timeit([&query_set, &heapTable, &output]() {
-        for (int i = 0; i < query_set->query_count; ++i) {
-            auto query = query_set->get_query(i);
-            auto found = heapTable.Select(query);
-            output << found << "\n";
-        }
-    });
+    auto selectDuration = 0;
+//    auto selectDuration = timeit([&query_set, &heapTable, &output]() {
+//        for (int i = 0; i < query_set->query_count; ++i) {
+//            auto query = query_set->get_query(i);
+//            auto found = heapTable.Select(query);
+//            output << found << "\n";
+//        }
+//    });
     output.close();
     auto throughput = getThroughput(query_set->query_count, selectDuration, 1);
     std::cout << "Querying duration: " << selectDuration << "s " << throughput << " op/s." << std::endl;

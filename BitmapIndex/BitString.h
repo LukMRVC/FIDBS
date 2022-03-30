@@ -5,6 +5,8 @@
 #ifndef BITMAPINDEX_BITSTRING_H
 #define BITMAPINDEX_BITSTRING_H
 
+#include <cstdio>
+
 constexpr short BYTE_SIZE = 8;
 
 class BitString {

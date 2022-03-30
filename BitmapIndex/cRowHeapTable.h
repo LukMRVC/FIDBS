@@ -194,19 +194,26 @@ unsigned int cRowHeapTable::SelectWithIndex(unsigned int conditions[][2], std::s
 }
 
 unsigned int cRowHeapTable::SelectWithIndex(const char * query) const {
-    bool canUseHashStats = true;
-    for (int i = 0; i < cols; ++i) {
-        if (query[i] < 0 && schema->attr_max_values[i] > 0) {
-            canUseHashStats = false;
-            break;
+    if (hashIndex != nullptr) {
+        bool canUseHashStats = true;
+        for (int i = 0; i < cols; ++i) {
+            if (query[i] < 0 && schema->attr_max_values[i] > 0) {
+                canUseHashStats = false;
+                break;
+            }
+        }
+
+        if (canUseHashStats) {
+            int count;
+            statistics->Select(query, count);
+            return count;
         }
     }
 
-    if (canUseHashStats) {
-        int count;
-        statistics->Select(query, count);
-        return count;
+    if (bitmapIndex == nullptr) {
+        return -1;
     }
+
     return bitmapIndex->Select(query);
 }
 
