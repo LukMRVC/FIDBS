@@ -6,6 +6,10 @@
 #define BITMAPINDEX_BITSTRING_H
 
 #include <cstdio>
+#include <cstring>
+#include <cstdint>
+#include <iostream>
+#include <bitset>
 
 constexpr short BYTE_SIZE = 8;
 
@@ -19,7 +23,7 @@ public:
         rec[bitOffset / 8] |= (1 << (bitOffset % BYTE_SIZE));
     }
 
-    static void printBitString(char * rec, int byteSize) {
+    static void printBitString(const char * rec, int byteSize) {
         for (int i = byteSize * BYTE_SIZE - 1; i >= 0; --i) {
             auto bitValue = (rec[i / BYTE_SIZE] & (1 << (i % BYTE_SIZE)));
             if (bitValue == 0) {
@@ -27,20 +31,31 @@ public:
             } else {
                 printf("1");
             }
-            if (i == 8) {
+            if (i % 8 == 0) {
                 printf("_");
             }
         }
         printf("\n");
     }
 
-    static bool equals(const char * mask, const char * record, int byteSize) {
-        for (int i = 0; i < byteSize; ++i) {
-            if ((mask[i] & record[i]) != record[i] ) {
-                return  false;
-            }
-        }
-        return true;
+    static inline bool equals(const char * mask, const char * record, int byteSize, uint64_t maxVal) {
+/*
+        BitString::printBitString(mask, byteSize);
+        BitString::printBitString(record, byteSize);
+        printf("\n");
+
+        uint64_t maskVal = (maxVal & *( uint64_t * ) mask);
+        uint64_t recordVal = (maxVal & *( uint64_t * ) record);
+
+        std::bitset<64> mv(maskVal);
+        std::bitset<64> rv(recordVal);
+        std::bitset<64> mx(maxVal);
+        std::cout << mv << std::endl;
+        std::cout << rv << std::endl;
+        std::cout << mx << std::endl;
+*/
+
+        return ((maxVal & *( uint64_t * ) mask) & (maxVal & *( uint64_t * ) record)) == (maxVal & *( uint64_t * ) record);
     }
 };
 

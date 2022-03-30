@@ -39,11 +39,11 @@ int main(int args_count, char *args[]) {
 
     // Create Row Heap Table
     cRowHeapTable heapTable(schema);
-    auto dataLoadDuration = timeit([&data_file, &heapTable]() {
-        heapTable.ReadFile(data_file);
-    });
+//    auto dataLoadDuration = timeit([&data_file, &heapTable]() {
+    heapTable.ReadFile(data_file);
+//    });
 
-    std::cout << "Data load duration: " << dataLoadDuration << "s, loaded: " << heapTable.getRowCount() << " records." << std::endl;
+//    std::cout << "Data load duration: " << dataLoadDuration << "s, loaded: " << heapTable.getRowCount() << " records." << std::endl;
 
     auto query_set = QuerySet::getFromFile(query_file, schema->attrs_count);
 
@@ -62,20 +62,24 @@ int main(int args_count, char *args[]) {
     auto throughput = getThroughput(query_set->query_count, selectDuration, 1);
     std::cout << "Querying duration: " << selectDuration << "s " << throughput << " op/s." << std::endl;
 
-    auto indexCreateDuration = timeit([&heapTable]() {
-        heapTable.createBitmapIndex();
-    });
-    std::cout << "Index creation: " << indexCreateDuration << "s" << std::endl;
+//    auto indexCreateDuration = timeit([&heapTable]() {
+    heapTable.createBitmapIndex();
+//    });
+//    std::cout << "Index creation: " << indexCreateDuration << "s" << std::endl;
 
     std::cout << "Running queries with bitmapIndex" << std::endl;
     output.open("./query_index_results.txt");
-    auto indexSelectDuration = timeit([&query_set, &heapTable, &output]() {
-        for (int i = 0; i < query_set->query_count; ++i) {
-            auto query = query_set->get_query(i);
-            auto found = heapTable.SelectWithIndex(query);
-            output << found << "\n";
-        }
-    });
+//    auto indexSelectDuration = timeit([&query_set, &heapTable, &output]() {
+    auto start = std::chrono::high_resolution_clock::now();
+
+    for (int i = 0; i < query_set->query_count; ++i) {
+        auto query = query_set->get_query(i);
+        auto found = heapTable.SelectWithIndex(query);
+        output << found << "\n";
+    }
+    auto end = std::chrono::high_resolution_clock::now();
+    auto indexSelectDuration = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
+//    });
 
     output.close();
     throughput = getThroughput(query_set->query_count, indexSelectDuration, 1);

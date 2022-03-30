@@ -5,7 +5,7 @@
 #include "BitmapIndex.h"
 #include "BitString.h"
 #include <cstring>
-
+#include <stdexcept>
 
 BitmapIndex::BitmapIndex(const int *attrs_max_value, int attrs_count, unsigned int capacity) {
     auto maxValuesSum = 0;
@@ -47,6 +47,9 @@ void BitmapIndex::createRecord(const char *rec, const unsigned int *attributeSiz
         if (attrsMaxValue[j] != -1) {
             // byte col value
             char colValue = *(rec + offset);
+            if (colValue > attrsMaxValue[j]) {
+                throw std::runtime_error("Col value is bigger than max allowed value!");
+            }
 //            printf("%d ", colValue);
             BitString::setBitString(indexRecord, bitIndexAttributeOffset[j] + colValue);
         }
@@ -66,9 +69,14 @@ int BitmapIndex::Select(unsigned int conditions[][2], int size) const {
         BitString::setBitString(SelectMask, bitIndexAttributeOffset[col] + col_value);
     }
 
+    uint64_t maxBytesValue = 0;
+    for (int i = 0; i < byteSize; ++i) {
+        maxBytesValue |= 0xff << (i * 8);
+    }
+
     for (int i = 0; i < recordCount; ++i) {
         auto indexRecord = getRowPointer(i);
-        if (BitString::equals(SelectMask, indexRecord, byteSize)) {
+        if (BitString::equals(SelectMask, indexRecord, byteSize, maxBytesValue)) {
             rowsFound += 1;
         }
     }
@@ -93,11 +101,18 @@ int BitmapIndex::Select(const char * query) const {
         }
     }
 
+    uint64_t maxBytesValue = 0;
+    uint64_t byteVals = 0xff;
+    for (int i = 0; i < byteSize; ++i) {
+        maxBytesValue |= byteVals << (i * 8);
+    }
+
+    auto indexRecord = getRowPointer(0);
     for (int i = 0; i < recordCount; ++i) {
-        auto indexRecord = getRowPointer(i);
-        if (BitString::equals(SelectMask, indexRecord, byteSize)) {
+        if (BitString::equals(SelectMask, indexRecord, byteSize, maxBytesValue)) {
             rowsFound += 1;
         }
+        indexRecord += byteSize;
     }
 
     return rowsFound;
