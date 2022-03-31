@@ -32,6 +32,9 @@ int main(int args_count, char *args[]) {
         return -1;
     }
 
+    constexpr size_t outputbufsize = 256 * 1024;
+    char buf[outputbufsize];
+
     char const * const schema_file = args[1];
     char const * const data_file = args[2];
     char const * const query_file = args[3];
@@ -69,6 +72,7 @@ int main(int args_count, char *args[]) {
 
     std::cout << "Running queries with bitmapIndex" << std::endl;
     output.open("./query_index_results.txt");
+    output.rdbuf()->pubsetbuf(buf, outputbufsize);
 //    auto indexSelectDuration = timeit([&query_set, &heapTable, &output]() {
     auto start = std::chrono::high_resolution_clock::now();
 

@@ -38,24 +38,8 @@ public:
         printf("\n");
     }
 
-    static inline bool equals(const char * mask, const char * record, int byteSize, uint64_t maxVal) {
-/*
-        BitString::printBitString(mask, byteSize);
-        BitString::printBitString(record, byteSize);
-        printf("\n");
-
-        uint64_t maskVal = (maxVal & *( uint64_t * ) mask);
-        uint64_t recordVal = (maxVal & *( uint64_t * ) record);
-
-        std::bitset<64> mv(maskVal);
-        std::bitset<64> rv(recordVal);
-        std::bitset<64> mx(maxVal);
-        std::cout << mv << std::endl;
-        std::cout << rv << std::endl;
-        std::cout << mx << std::endl;
-*/
-
-        return ((maxVal & *( uint64_t * ) mask) & (maxVal & *( uint64_t * ) record)) == (maxVal & *( uint64_t * ) record);
+    static inline bool equals(const char * mask, const char * record, uint64_t maxVal) {
+        return !(((*( uint64_t * ) mask) & (maxVal & *( uint64_t * ) record)) ^ (maxVal & *( uint64_t * ) record));
     }
 };
 

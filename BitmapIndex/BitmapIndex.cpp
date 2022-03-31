@@ -76,7 +76,7 @@ int BitmapIndex::Select(unsigned int conditions[][2], int size) const {
 
     for (int i = 0; i < recordCount; ++i) {
         auto indexRecord = getRowPointer(i);
-        if (BitString::equals(SelectMask, indexRecord, byteSize, maxBytesValue)) {
+        if (BitString::equals(SelectMask, indexRecord, maxBytesValue)) {
             rowsFound += 1;
         }
     }
@@ -108,12 +108,25 @@ int BitmapIndex::Select(const char * query) const {
     }
 
     auto indexRecord = getRowPointer(0);
-    for (int i = 0; i < recordCount; ++i) {
-        if (BitString::equals(SelectMask, indexRecord, byteSize, maxBytesValue)) {
+    auto maxLoops = recordCount >> 1;
+    for (int i = 0; i < maxLoops; ++i) {
+        if (BitString::equals(SelectMask, indexRecord, maxBytesValue)) {
+            rowsFound += 1;
+        }
+        indexRecord += byteSize;
+        if (BitString::equals(SelectMask, indexRecord, maxBytesValue)) {
             rowsFound += 1;
         }
         indexRecord += byteSize;
     }
+
+    if (recordCount & 1) {
+        indexRecord += byteSize;
+        if (BitString::equals(SelectMask, indexRecord, maxBytesValue)) {
+            rowsFound += 1;
+        }
+    }
+
 
     return rowsFound;
 }

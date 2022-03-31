@@ -15,7 +15,7 @@ private:
     int attrsCount = 0;
     int * attrsMaxValue = nullptr;
     int * bitIndexAttributeOffset = nullptr;
-    int recordCount = 0;
+    unsigned int recordCount = 0;
     char * SelectMask;
 
     unsigned int capacity = 0;
