@@ -22,11 +22,49 @@ inline double getThroughput(int opsCount, double period, int unit) {
     return (((double) opsCount / (double) unit)) / period;
 }
 
+void PrintRecord(char * record, const TableSchema * schema) {
+    for (int i = 0; i < schema->attrs_count; ++i) {
+        if (schema->attr_sizes[i] > 1) {
+            for (int j = 0; j < schema->attr_sizes[i]; ++j) {
+                printf("%c", (record + schema->attribute_offsets[i])[j]);
+            }
+            printf(";");
+        } else {
+            printf("%d;", *((uint8_t *) (record + schema->attribute_offsets[i])));
+        }
+    }
+    printf("\n");
+}
+
+void PrintRecord(char * record, const TableSchema * schema, std::ofstream & outstream) {
+    char outputBuffer[256];
+    memset(outputBuffer, 0, 256);
+    auto outputOffset = 0;
+    for (int i = 0; i < schema->attrs_count; ++i) {
+        if (schema->attr_sizes[i] > 1) {
+            for (int j = 0; j < schema->attr_sizes[i]; ++j) {
+                sprintf(outputBuffer + outputOffset, "%c", (record + schema->attribute_offsets[i])[j]);
+                outputOffset += 1;
+            }
+            sprintf(outputBuffer + outputOffset, ";");
+            outputOffset += 1;
+        } else {
+            sprintf(outputBuffer + outputOffset, "%d;", *((uint8_t *) (record + schema->attribute_offsets[i])));
+            outputOffset += 2;
+        }
+    }
+    outstream << outputBuffer << "\n";
+}
+
 int main(int args_count, char *args[]) {
     if (args_count < 4) {
         std::cerr << "Program must be called with 3 args: [schema file] [data file] [query file]" << std::endl;
         return -1;
     }
+    const int max_select_rows = 50;
+    constexpr size_t outputbufsize = 256 * 1024;
+    char buf[outputbufsize];
+    char select_buf[outputbufsize];
 
     char const *const schema_file = args[1];
     char const *const data_file = args[2];
@@ -51,37 +89,48 @@ int main(int args_count, char *args[]) {
         }
     }
     char * key = new char [pos];
-    heapTable.createBitmapIndex();
-    heapTable.createHashTableIndex(attr_pos);
+    auto bitmapIndexCreationDuration = timeit([&heapTable] {
+        heapTable.createBitmapIndex();
+    });
+    std::cout << "Created bitmap index in: " << bitmapIndexCreationDuration << "s" << std::endl;
+    auto hashIndexCreationDuration = timeit([&heapTable, &attr_pos] {
+        heapTable.createHashTableIndex(attr_pos);
+    });
+    std::cout << "Created hashIndex in: " << hashIndexCreationDuration << "s" << std::endl;
 
+    std::ofstream output("./hash_count_query_results.txt");
+    std::ofstream select_output("./hash_select_query_results.txt");
+    output.rdbuf()->pubsetbuf(buf, outputbufsize);
+    select_output.rdbuf()->pubsetbuf(select_buf, outputbufsize);
     Cursor<int> cursor;
     int rowId;
     char *record = new char[schema->record_size + 1];
     record[schema->record_size] = 0;
+    auto startTime = std::chrono::high_resolution_clock::now();
+    double totalSelectDuration = 0;
     for (int i = 0; i < query_set->query_count; ++i) {
         auto query = query_set->get_query(i);
         auto found = heapTable.SelectWithIndex(query);
-        printf("%d\n", found);
-
-
-//        if (heapTable.Find(key, cursor)) {
-//            while (cursor.nextRecord(rowId)) {
-//                heapTable.get(rowId, record);
-//                for (int i = 0; i < schema->attrs_count; ++i) {
-//                    if (schema->attr_sizes[i] > 1) {
-//                        for (int j = 0; j < schema->attr_sizes[i]; ++j) {
-//                            printf("%c", (record + schema->attribute_offsets[i])[j]);
-//                        }
-//                        printf(";");
-//                    } else {
-//                        printf("%d;", *((uint8_t *) (record + schema->attribute_offsets[i])));
-//                    }
-//                }
-//                printf("\n");
-//            }
-//        }
-//        continue_loop:;
+        output << found << "\n";
+        if (found <= max_select_rows) {
+            auto selectDuration = timeit([&heapTable, &cursor, &rowId, &record, &query, &select_output, &schema] {
+                heapTable.Find(query, cursor);
+                while (cursor.nextRecord(rowId)) {
+                    heapTable.get(rowId, record);
+                    PrintRecord(record, schema, select_output);
+//                    select_output << record << "\n";
+                }
+            });
+            totalSelectDuration += selectDuration;
+        }
     }
+    auto end = std::chrono::high_resolution_clock::now();
+    auto selectCountDuration = std::chrono::duration_cast<std::chrono::duration<double>>(end - startTime).count() - totalSelectDuration;
+    std::cout << "COUNT(*) duration: " << selectCountDuration << "s" << std::endl;
+    std::cout << "SELECT(*) duration: " << totalSelectDuration << "s" << std::endl;
+
+    output.close();
+    select_output.close();
 
     delete [] attr_pos;
     delete [] key;

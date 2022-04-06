@@ -5,7 +5,6 @@
 #ifndef HEAPTABLEHASHTABLE_CMEMORY_H
 #define HEAPTABLEHASHTABLE_CMEMORY_H
 
-#include <cstdio>
 
 class cMemory {
 private:
@@ -29,26 +28,9 @@ public:
         }
     }
 
-    inline char* New(int size);
+    char* New(int size);
     void PrintStat() const;
 
 };
-
-void cMemory::PrintStat() const {
-    printf("cMemory::PrintStat(): Capacity: %d, Size %d, Utilization: %.2f\n",
-           mCapacity, mSize, (double)mSize / mCapacity);
-}
-
-char *cMemory::New(int size) {
-    char * mem = nullptr;
-    if (mSize + size >= mCapacity) {
-        printf("Critical error: cMemory::new(): There is not enough memory.\n");
-        mem = nullptr;
-    } else {
-        mem = mData + mSize;
-        mSize += size;
-    }
-    return mem;
-}
 
 #endif //HEAPTABLEHASHTABLE_CMEMORY_H

@@ -21,6 +21,7 @@ private:
     unsigned int * bitShifts = nullptr;
 	inline int HashValue(const char *) const;
     char * selectKey = nullptr;
+    inline void queryToKey(const char * query) const;
 public:
     cHashTable(unsigned int, unsigned int, unsigned int, int*, unsigned int);
 
@@ -31,6 +32,7 @@ public:
     bool Find(const char *, TData &data, bool recursive = false) const;
     bool Find(const char *, Cursor<TData> &) const;
     bool Select(const char *, TData &data) const;
+    bool Select(const char *, Cursor<TData> &) const;
 	void PrintStat() const;
 };
 
@@ -115,7 +117,7 @@ bool cHashTable<TData>::Add(const char * key, const TData &data, bool recursive)
             mHashTable[hv] = new (memForNode)cHashTableNode<TData>();
         }
         mNodeCount++;
-        printf("HashTable new Node creating!, Slot count: %d\n", mNodeCount);
+//        printf("HashTable new Node creating!, Slot count: %d\n", mNodeCount);
     }
 
 //    if (recursive) {
@@ -164,9 +166,15 @@ bool cHashTable<TData>::Find(const char * key, Cursor<TData> & cursor) const {
 }
 
 template<class TData>
-bool cHashTable<TData>::Select(const char *query, TData &data) const {
-
+bool cHashTable<TData>::Select(const char * query, TData &data) const {
+    queryToKey(query);
     return Find(selectKey, data);
+}
+
+template<class TData>
+bool cHashTable<TData>::Select(const char * query, Cursor<TData> & cursor) const {
+    queryToKey(query);
+    return Find(selectKey, cursor);
 }
 
 template<class TData>
@@ -185,4 +193,17 @@ bool cHashTable<TData>::IncrementData(const char * key) {
         mNodeCount++;
     }
     return mHashTable[hv]->IncrementData(key);
+}
+
+template<class TData>
+void cHashTable<TData>::queryToKey(const char * query) const {
+    // for now, ignore keys positions
+    int i = 0;
+    int selectIdx = 0;
+    while (selectIdx < keySize) {
+        if (query[i] >= 0) {
+            selectKey[selectIdx++] = query[i];
+        }
+        i += 1;
+    }
 }

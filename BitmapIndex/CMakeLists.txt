@@ -23,6 +23,6 @@ list(
         DataStructures/Cursor.h
 )
 
-add_executable(BitmapIndex main.cpp ${CPP_FILES})
-add_executable(BitmapQuery BitmapQuery.cpp ${CPP_FILES} TableSchema.h QuerySet.h BitmapIndex.cpp)
-add_executable(HashQuery HashQuery.cpp ${CPP_FILES} TableSchema.h QuerySet.h BitmapIndex.cpp)
+add_executable(BitmapIndex main.cpp ${CPP_FILES} cRowHeapTable.cpp TableSchema.cpp DataStructures/Memory.cpp)
+add_executable(BitmapQuery BitmapQuery.cpp ${CPP_FILES} BitmapIndex.cpp cRowHeapTable.cpp TableSchema.cpp DataStructures/Memory.cpp)
+add_executable(HashQuery HashQuery.cpp ${CPP_FILES} BitmapIndex.cpp cRowHeapTable.cpp TableSchema.cpp DataStructures/Memory.cpp)
