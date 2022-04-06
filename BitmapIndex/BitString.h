@@ -39,7 +39,7 @@ public:
     }
 
     static inline bool equals(const char * mask, const char * record, uint64_t maxVal) {
-        return !(((*( uint64_t * ) mask) & (*( uint64_t * ) record)) ^ (maxVal & *( uint64_t * ) record));
+        return !(((*( uint64_t * ) mask) & (maxVal & *( uint64_t * ) record)) ^ (maxVal & *( uint64_t * ) record));
     }
 };
 
