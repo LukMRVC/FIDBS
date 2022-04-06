@@ -114,11 +114,11 @@ int main(int args_count, char *args[]) {
         output << found << "\n";
         if (found <= max_select_rows) {
             auto selectDuration = timeit([&heapTable, &cursor, &rowId, &record, &query, &select_output, &schema] {
-                heapTable.Find(query, cursor);
-                while (cursor.nextRecord(rowId)) {
-                    heapTable.get(rowId, record);
-                    PrintRecord(record, schema, select_output);
-//                    select_output << record << "\n";
+                if (heapTable.Find(query, cursor)) {
+                    while (cursor.nextRecord(rowId)) {
+                        heapTable.get(rowId, record);
+                        PrintRecord(record, schema, select_output);
+                    }
                 }
             });
             totalSelectDuration += selectDuration;

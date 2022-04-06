@@ -130,18 +130,21 @@ unsigned int cRowHeapTable::SelectWithIndex(unsigned int conditions[][2], std::s
     return bitmapIndex->Select(conditions, size);
 }
 
-unsigned int cRowHeapTable::SelectWithIndex(const char * query) const {
-    if (hashIndex != nullptr) {
-        bool canUseHashStats = true;
-        for (int i = 0; i < cols; ++i) {
-            if (query[i] < 0 && schema->attr_max_values[i] > 0) {
-                canUseHashStats = false;
-                break;
-            }
+bool cRowHeapTable::canUseHashIndex(const char * query) const {
+    for (int i = 0; i < cols; ++i) {
+        if (query[i] < 0 && schema->attr_max_values[i] > 0) {
+            return false;
         }
+    }
+    return true;
+}
+
+unsigned int cRowHeapTable::SelectWithIndex(const char * query) const {
+    if (hashIndex != nullptr && statistics != nullptr) {
+        bool canUseHashStats = canUseHashIndex(query);
 
         if (canUseHashStats) {
-            int count;
+            int count = 0;
             statistics->Select(query, count);
             return count;
         }
@@ -283,7 +286,7 @@ bool cRowHeapTable::get(int rowId, char * data) const {
 }
 
 bool cRowHeapTable::Find(const char * query, Cursor<int> & cursor) const {
-    if (hashIndex == nullptr) {
+    if (hashIndex == nullptr && canUseHashIndex(query)) {
         return false;
     }
     return hashIndex->Select(query, cursor);

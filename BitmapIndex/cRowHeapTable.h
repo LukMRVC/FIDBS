@@ -26,6 +26,8 @@ private:
         this->mData = new char [reserve_capacity * rowSize];
     }
 
+    bool canUseHashIndex(const char * query) const;
+
     BitmapIndex * bitmapIndex = nullptr;
     [[nodiscard]] inline char * getRowPointer(unsigned int rowId) const {
         return mData + rowId * rowSize;
