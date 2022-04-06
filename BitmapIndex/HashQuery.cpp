@@ -108,8 +108,12 @@ int main(int args_count, char *args[]) {
     record[schema->record_size] = 0;
     auto startTime = std::chrono::high_resolution_clock::now();
     double totalSelectDuration = 0;
+    auto totalTimesUsedHashIndex = 0;
     for (int i = 0; i < query_set->query_count; ++i) {
         auto query = query_set->get_query(i);
+        if (heapTable.canUseHashIndex(query)) {
+            totalTimesUsedHashIndex += 1;
+        }
         auto found = heapTable.SelectWithIndex(query);
         output << found << "\n";
         if (found <= max_select_rows) {
@@ -128,6 +132,7 @@ int main(int args_count, char *args[]) {
     auto selectCountDuration = std::chrono::duration_cast<std::chrono::duration<double>>(end - startTime).count() - totalSelectDuration;
     std::cout << "COUNT(*) duration: " << selectCountDuration << "s" << std::endl;
     std::cout << "SELECT(*) duration: " << totalSelectDuration << "s" << std::endl;
+    printf("Used HASH Index: %d / %d \n", totalTimesUsedHashIndex, query_set->query_count);
 
     output.close();
     select_output.close();

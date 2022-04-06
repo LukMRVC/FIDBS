@@ -109,14 +109,15 @@ int BitmapIndex::Select(const char * query) const {
 
     auto indexRecord = getRowPointer(0);
     auto maxLoops = recordCount >> 1;
+    bool equals;
     for (int i = 0; i < maxLoops; ++i) {
-        if (BitString::equals(SelectMask, indexRecord, maxBytesValue)) {
-            rowsFound += 1;
-        }
+        // 1
+        equals = BitString::equals(SelectMask, indexRecord, maxBytesValue);
+        rowsFound += 1 * equals;
         indexRecord += byteSize;
-        if (BitString::equals(SelectMask, indexRecord, maxBytesValue)) {
-            rowsFound += 1;
-        }
+        // 2
+        equals = BitString::equals(SelectMask, indexRecord, maxBytesValue);
+        rowsFound += 1 * equals;
         indexRecord += byteSize;
     }
 
