@@ -79,6 +79,23 @@ int main(int args_count, char *args[]) {
     });
 
     std::cout << "Data load duration: " << dataLoadDuration << "s, loaded: " << heapTable.getRowCount() << " records." << std::endl;
+
+    std::cout << "Running queries without bitmapIndex" << std::endl;
+    // Select COUNT(*) NO INDEX
+    std::ofstream output("./query_results.txt");
+    output.rdbuf()->pubsetbuf(buf, outputbufsize);
+    auto selectDuration = timeit([&query_set, &heapTable, &output]() {
+        for (int i = 0; i < query_set->query_count; ++i) {
+            auto query = query_set->get_query(i);
+            auto found = heapTable.Select(query);
+            output << found << "\n";
+        }
+    });
+    output.close();
+    auto throughput = getThroughput(query_set->query_count, selectDuration, 1);
+    std::cout << "NO INDEX COUNT(*) duration: " << selectDuration << "s " << throughput << " op/s." << std::endl;
+
+
     int * attr_pos = new int[schema->attrs_count];
     auto pos = 1;
     for (int i = 0; i < schema->attrs_count; ++i) {
@@ -92,13 +109,28 @@ int main(int args_count, char *args[]) {
     auto bitmapIndexCreationDuration = timeit([&heapTable] {
         heapTable.createBitmapIndex();
     });
+
     std::cout << "Created bitmap index in: " << bitmapIndexCreationDuration << "s" << std::endl;
+
+    output.open("./query_bitmap_index_results.txt");
+    auto indexSelectDuration = timeit([&query_set, &heapTable, &output]() {
+        for (int i = 0; i < query_set->query_count; ++i) {
+            auto query = query_set->get_query(i);
+            auto found = heapTable.SelectWithIndex(query);
+            output << found << "\n";
+        }
+    });
+    output.close();
+    throughput = getThroughput(query_set->query_count, indexSelectDuration, 1);
+    std::cout << "BITMAP INDEX COUNT(*) duration: " << indexSelectDuration << "s " << throughput << " op/s."<< std::endl;
+
+
     auto hashIndexCreationDuration = timeit([&heapTable, &attr_pos] {
         heapTable.createHashTableIndex(attr_pos);
     });
     std::cout << "Created hashIndex in: " << hashIndexCreationDuration << "s" << std::endl;
 
-    std::ofstream output("./hash_count_query_results.txt");
+    output.open("./hash_count_query_results.txt");
     std::ofstream select_output("./hash_select_query_results.txt");
     output.rdbuf()->pubsetbuf(buf, outputbufsize);
     select_output.rdbuf()->pubsetbuf(select_buf, outputbufsize);
@@ -130,8 +162,8 @@ int main(int args_count, char *args[]) {
     }
     auto end = std::chrono::high_resolution_clock::now();
     auto selectCountDuration = std::chrono::duration_cast<std::chrono::duration<double>>(end - startTime).count() - totalSelectDuration;
-    std::cout << "COUNT(*) duration: " << selectCountDuration << "s" << std::endl;
-    std::cout << "SELECT(*) duration: " << totalSelectDuration << "s" << std::endl;
+    std::cout << "COMPOUND INDEX COUNT(*) duration: " << selectCountDuration << "s" << std::endl;
+    std::cout << "COMPOUND INDEX SELECT(*) duration: " << totalSelectDuration << "s" << std::endl;
     printf("Used HASH Index: %d / %d \n", totalTimesUsedHashIndex, query_set->query_count);
 
     output.close();
