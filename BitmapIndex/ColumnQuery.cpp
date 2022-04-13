@@ -32,7 +32,7 @@ int main(int args_count, char *args[]) {
     char const *const query_file = args[3];
 
     const TableSchema *schema = TableSchema::getFromFile(schema_file, true);
-    auto query_set = QuerySet::getFromFile(query_file, schema->attrs_count);
+//    auto query_set = QuerySet::getFromFile(query_file, schema->attrs_count);
 
     cColumnStoreTable columnTable(schema);
     auto dataLoadDuration = timeit([&data_file, &columnTable]() {
@@ -41,12 +41,12 @@ int main(int args_count, char *args[]) {
 
     std::cout << "Data load duration: " << dataLoadDuration << "s" << std::endl;
 
-    for (int i = 0; i < query_set->query_count; ++i) {
+    /*for (int i = 0; i < query_set->query_count; ++i) {
         auto query = query_set->get_query(i);
 
         double average = columnTable.SelectAvg((const uint8_t *)query);
         printf("%.2f\n", average);
-    }
+    }*/
 
     return 0;
 }

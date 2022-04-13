@@ -46,7 +46,7 @@ TableSchema *TableSchema::getFromFile(const char *filename, bool with_data_types
     if (with_data_types) {
         table_schema->data_types = new char [attrs_count];
         schema.getline(line, MAX_LEN);
-        sscanf(line, "AttrSize:%s", values);
+        sscanf(line, "AttrType:%s", values);
         tok = std::strtok(values, ",");
         while (tok != NULL) {
             table_schema->data_types[i] = *tok;
@@ -54,6 +54,7 @@ TableSchema *TableSchema::getFromFile(const char *filename, bool with_data_types
             ++i;
         }
 
+        i = 0;
         // attribute sizes
         schema.getline(line, MAX_LEN);
         sscanf(line, "AttrSize:%s", values);

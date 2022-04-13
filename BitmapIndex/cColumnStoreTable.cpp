@@ -4,9 +4,16 @@
 
 #include "cColumnStoreTable.h"
 #include <vector>
+#include <stdexcept>
 
 bool cColumnStoreTable::reserve(uint32_t max_capacity) {
-    if (mData != nullptr || schema == nullptr || recordSize == 0) return false;
+    if (mData != nullptr || schema == nullptr || recordSize == 0 || column_offsets == nullptr) return false;
+
+    uint32_t offset_sum = 0;
+    for (int i = 0; i < schema->attrs_count; ++i) {
+        column_offsets[i] = offset_sum;
+        offset_sum += max_capacity * schema->attr_sizes[i];
+    }
 
     capacity = max_capacity;
     mData = new uint8_t [capacity * recordSize];
@@ -18,8 +25,6 @@ cColumnStoreTable::cColumnStoreTable(const TableSchema *table_schema, uint32_t m
     column_offsets = new uint32_t[schema->attrs_count];
     column_offsets[0] = 0;
     for (int i = 0; i < schema->attrs_count; ++i) {
-        // TODO: Is this the correct way to get the column offset?
-        column_offsets[i] = i * recordSize;
         recordSize += schema->attr_sizes[i];
     }
 
@@ -42,6 +47,10 @@ cColumnStoreTable::~cColumnStoreTable() {
 }
 
 double cColumnStoreTable::SelectAvg(const uint8_t *query) const {
+    if (column_offsets == nullptr) {
+        throw std::runtime_error("Column offsets were not set!");
+    }
+
     size_t col_avg = query[0];
     auto pointer = get_col_pointer(col_avg);
     auto averages = std::vector<double>();
@@ -84,6 +93,8 @@ bool cColumnStoreTable::ReadFile(const char *filename) {
         reserve(records);
     }
 
+    int32_t load_int;
+    float load_float;
     while (!data.eof()) {
         line_offset = 0;
         data.getline(line, MAX_LEN);
@@ -94,10 +105,16 @@ bool cColumnStoreTable::ReadFile(const char *filename) {
 
         for (int i = 0; i < schema->attrs_count; ++i) {
             auto colPointer = get_col_pointer(i) + (schema->attr_sizes[i] * recordCount);
-            if (schema->attr_sizes[i] > 1) {
+            if (schema->data_types[i] == 'C') {
                 std::memcpy(colPointer, line + line_offset, schema->attr_sizes[i]);
-            } else {
+            } else if (schema->attr_sizes[i] == 1) {
                 *colPointer = line[line_offset];
+            } else if (schema->data_types[i] == 'I') {
+                auto matched = sscanf(line + line_offset, "%d;", &load_int);
+                *(int *)colPointer = load_int;
+            } else {
+                auto matched = sscanf(line + line_offset, "%f;", &load_float);
+                *(float *)colPointer = load_float;
             }
             line_offset += schema->attr_sizes[i];
         }

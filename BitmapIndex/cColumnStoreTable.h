@@ -14,11 +14,14 @@ private:
     uint32_t capacity = 0;
     uint32_t recordSize = 0;
     uint8_t * mData = nullptr;
+    uint32_t * attr_sizes = nullptr;
     uint32_t * column_offsets = nullptr;
     const TableSchema * schema = nullptr;
     [[nodiscard]] uint8_t * get_col_pointer(size_t column) const {
         return mData + column_offsets[column];
     }
+
+
 public:
     explicit cColumnStoreTable(const TableSchema *, uint32_t = 0);
     ~cColumnStoreTable();
