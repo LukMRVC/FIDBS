@@ -86,7 +86,6 @@ int BitmapIndex::Select(unsigned int conditions[][2], int size) const {
 
 int BitmapIndex::Select(const char * query) const {
     int rowsFound = 0;
-    // TODO: Reverse this, set all to 1, then set with bit string 0
     // At the end, bit negate ~ the mask
     memset(SelectMask, 0, byteSize);
     for (int col = 0; col < attrsCount; ++col) {
@@ -103,7 +102,6 @@ int BitmapIndex::Select(const char * query) const {
         }
     }
 
-    // TODO: move to class values
     uint64_t maxBytesValue = 0;
     uint64_t byteVals = 0xff;
     for (int i = 0; i < byteSize; ++i) {
