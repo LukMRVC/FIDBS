@@ -268,7 +268,7 @@ void cRowHeapTable::createHashTableIndex(const int *attr_order) {
         hashIndex->Add(key, i);
         statistics->IncrementData(key);
 //        if (i % 100000 == 0) {
-//            printf("%d / %d\n", i, rowCount);
+//            printf("%d / %d\n", i, recordCount);
 //        }
     }
 

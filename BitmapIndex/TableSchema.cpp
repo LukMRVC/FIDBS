@@ -9,6 +9,7 @@ TableSchema::TableSchema(unsigned int atrs, unsigned int * sizes, int * max_valu
     std::memcpy(attr_sizes, sizes, attrs_count * sizeof (unsigned int));
     attr_max_values = new int[attrs_count];
     std::memcpy(attr_max_values, max_values, attrs_count * sizeof (int));
+    data_types = new char [attrs_count];
     calculate_offsets();
 }
 
@@ -28,7 +29,7 @@ TableSchema::~TableSchema() {
     attrs_count = -1;
 }
 
-TableSchema *TableSchema::getFromFile(const char *filename) {
+TableSchema *TableSchema::getFromFile(const char *filename, bool with_data_types) {
     constexpr int MAX_LEN = 1024;
     char line[MAX_LEN];
     std::ifstream schema(filename);
@@ -38,13 +39,26 @@ TableSchema *TableSchema::getFromFile(const char *filename) {
     auto * const table_schema = new TableSchema();
     table_schema->attrs_count = attrs_count;
     table_schema->attr_sizes = new unsigned int [attrs_count];
+    char * tok = nullptr;
+    int i = 0;
+    char values[512];
+
+    if (with_data_types) {
+        table_schema->data_types = new char [attrs_count];
+        schema.getline(line, MAX_LEN);
+        sscanf(line, "AttrSize:%s", values);
+        tok = std::strtok(values, ",");
+        while (tok != NULL) {
+            table_schema->data_types[i] = *tok;
+            tok = std::strtok(NULL, ",");
+            ++i;
+        }
+    }
+
     // attribute sizes
     schema.getline(line, MAX_LEN);
-    char values[512];
     sscanf(line, "AttrSize:%s", values);
-    char * tok = nullptr;
     tok = std::strtok(values, ",");
-    int i = 0;
     while (tok != NULL) {
         table_schema->attr_sizes[i] = std::atoi(tok);
         tok = std::strtok(NULL, ",");

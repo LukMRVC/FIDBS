@@ -35,4 +35,4 @@ list(
 add_executable(BitmapIndex main.cpp ${CPP_FILES} cRowHeapTable.cpp TableSchema.cpp DataStructures/Memory.cpp)
 add_executable(BitmapQuery BitmapQuery.cpp ${CPP_FILES} ${CPP_INDEX_FILES})
 add_executable(HashQuery HashQuery.cpp ${CPP_FILES} ${CPP_INDEX_FILES})
-add_executable(ColumnTable ColumnQuery.cpp ${CPP_FILES} ${CPP_INDEX_FILES} ColumnQuery.cpp)
+add_executable(ColumnTable ColumnQuery.cpp ${CPP_FILES} ${CPP_INDEX_FILES} cColumnStoreTable.cpp cColumnStoreTable.h)
