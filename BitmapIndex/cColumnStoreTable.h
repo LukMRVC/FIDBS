@@ -19,13 +19,11 @@ private:
     [[nodiscard]] uint8_t * get_col_pointer(size_t column) const {
         return mData + column_offsets[column];
     }
-
-
 public:
     explicit cColumnStoreTable(const TableSchema *, uint32_t = 0);
     ~cColumnStoreTable();
     bool reserve(uint32_t capacity);
-
+    bool ReadFile(const char * filename);
     double SelectAvg(const uint8_t * query) const;
 };
 

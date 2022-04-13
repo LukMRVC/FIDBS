@@ -53,17 +53,33 @@ TableSchema *TableSchema::getFromFile(const char *filename, bool with_data_types
             tok = std::strtok(NULL, ",");
             ++i;
         }
+
+        // attribute sizes
+        schema.getline(line, MAX_LEN);
+        sscanf(line, "AttrSize:%s", values);
+        tok = std::strtok(values, ",");
+        while (tok != NULL) {
+            if (table_schema->data_types[i] == 'C') {
+                table_schema->attr_sizes[i] = std::atoi(tok);
+            } else {
+                table_schema->attr_sizes[i] = table_schema->get_attr_size(table_schema->data_types[i]);
+            }
+            tok = std::strtok(NULL, ",");
+            i++;
+        }
+    } else {
+        // attribute sizes
+        schema.getline(line, MAX_LEN);
+        sscanf(line, "AttrSize:%s", values);
+        tok = std::strtok(values, ",");
+        while (tok != NULL) {
+            table_schema->attr_sizes[i] = std::atoi(tok);
+            tok = std::strtok(NULL, ",");
+            i++;
+        }
     }
 
-    // attribute sizes
-    schema.getline(line, MAX_LEN);
-    sscanf(line, "AttrSize:%s", values);
-    tok = std::strtok(values, ",");
-    while (tok != NULL) {
-        table_schema->attr_sizes[i] = std::atoi(tok);
-        tok = std::strtok(NULL, ",");
-        i++;
-    }
+
 
     // max values
     table_schema->attr_max_values = new int [attrs_count];
@@ -92,6 +108,17 @@ void TableSchema::calculate_offsets() {
         offset += attr_sizes[i];
     }
     record_size = offset;
+}
+
+uint32_t TableSchema::get_attr_size(char dataType, uint32_t col) const {
+    if (dataType == 'C') {
+        return attr_sizes[col];
+    } else if (dataType == 'F' || dataType == 'I') {
+        return 4;
+    } else {
+        // must be a byte value
+        return 1;
+    }
 }
 
 TableSchema::TableSchema() = default;

@@ -24,6 +24,8 @@ public:
     ~TableSchema();
 
     static TableSchema* getFromFile(const char * filename, bool with_data_types = false);
+
+    uint32_t get_attr_size(char dataType, uint32_t = 0) const;
 };
 
 

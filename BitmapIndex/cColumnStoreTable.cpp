@@ -20,14 +20,7 @@ cColumnStoreTable::cColumnStoreTable(const TableSchema *table_schema, uint32_t m
     for (int i = 0; i < schema->attrs_count; ++i) {
         // TODO: Is this the correct way to get the column offset?
         column_offsets[i] = i * recordSize;
-        if (schema->data_types[i] == 'C') {
-            recordSize += schema->attr_sizes[i];
-        } else if (schema->data_types[i] == 'F' || schema->data_types[i] == 'I') {
-            recordSize += 4;
-        } else {
-            // must be a byte value
-            recordSize += 1;
-        }
+        recordSize += schema->attr_sizes[i];
     }
 
     if (max_capacity > 0) {
@@ -56,15 +49,7 @@ double cColumnStoreTable::SelectAvg(const uint8_t *query) const {
     averages.reserve( capacity / avg_count_max + 2);
     int iteration = 0;
     // get attribute size in bytes
-    auto attr_size = 0;
-    if (schema->data_types[col_avg] == 'C') {
-        attr_size = schema->attr_sizes[col_avg];
-    } else if (schema->data_types[col_avg] == 'F' || schema->data_types[col_avg] == 'I') {
-        attr_size = 4;
-    } else {
-        // must be a byte value
-        attr_size = 1;
-    }
+    auto attr_size = schema->attr_sizes[col_avg];
 
     do {
         double avg = 0;
@@ -85,3 +70,41 @@ double cColumnStoreTable::SelectAvg(const uint8_t *query) const {
 
     return totalAvg;
 }
+
+bool cColumnStoreTable::ReadFile(const char *filename) {
+    int line_offset;
+    constexpr int MAX_LEN = 1024;
+    char line[MAX_LEN];
+    int records = 0;
+    std::ifstream data(filename);
+
+    data.getline(line, MAX_LEN);
+    sscanf(line, "RowCount:%d", &records);
+    if (capacity <= 0) {
+        reserve(records);
+    }
+
+    while (!data.eof()) {
+        line_offset = 0;
+        data.getline(line, MAX_LEN);
+        // skip empty line
+        if (line[0] == 0) {
+            continue;
+        }
+
+        for (int i = 0; i < schema->attrs_count; ++i) {
+            auto colPointer = get_col_pointer(i) + (schema->attr_sizes[i] * recordCount);
+            if (schema->attr_sizes[i] > 1) {
+                std::memcpy(colPointer, line + line_offset, schema->attr_sizes[i]);
+            } else {
+                *colPointer = line[line_offset];
+            }
+            line_offset += schema->attr_sizes[i];
+        }
+        recordCount += 1;
+    }
+    data.close();
+
+    return true;
+}
+

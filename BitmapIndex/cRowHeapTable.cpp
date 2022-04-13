@@ -230,7 +230,7 @@ bool cRowHeapTable::ReadFile(const char * filename) {
     }
     data.close();
 
-    return false;
+    return true;
 }
 
 void cRowHeapTable::createHashTableIndex(const int *attr_order) {
