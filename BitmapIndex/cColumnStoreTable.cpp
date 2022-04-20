@@ -48,15 +48,15 @@ cColumnStoreTable::~cColumnStoreTable() {
     }
 }
 
-double cColumnStoreTable::SelectAvg(const uint8_t *query) const {
+double cColumnStoreTable::SelectAvg(const int8_t *query) const {
     if (column_offsets == nullptr) {
         throw std::runtime_error("Column offsets were not set!");
     }
 
     size_t col_avg = query[0];
+    auto found_rows = 0;
     auto pointer = get_col_pointer(col_avg);
     auto averages = std::vector<float>();
-    int iteration = 0;
     // get attribute size in bytes
     auto attr_size = schema->attr_sizes[col_avg];
     std::function<float(const uint8_t *)> converter;
@@ -66,19 +66,56 @@ double cColumnStoreTable::SelectAvg(const uint8_t *query) const {
         throw std::runtime_error("Calculating average on non-float data");
     }
 
+    bool is_constrained = false;
+    size_t constrained_col = 0;
+    for (int i = 1; i < schema->attrs_count + 1; ++i) {
+        if (query[i] >= 0) {
+            constrained_col = i;
+            is_constrained = true;
+            break;
+        }
+    }
+
     auto doubleMax = std::numeric_limits<float>::max();
     float converted = 0;
     float avg = 0;
-    for (int i = 0; i < recordCount; ++i) {
-        converted = converter(pointer);
-        if (avg + converted > doubleMax) {
-            averages.emplace_back(avg);
-            avg = 0;
+    if (!is_constrained) {
+        found_rows = recordCount;
+        for (int i = 0; i < recordCount; ++i) {
+            converted = converter(pointer);
+            if (avg + converted > doubleMax) {
+                averages.emplace_back(avg);
+                avg = 0;
+            }
+            avg += converted;
+            pointer += attr_size;
         }
-        avg += converted;
-        pointer +=  attr_size;
+        averages.emplace_back(avg);
+    } else {
+        // constrained col is + 1 offsetted because of query, which as +1 attribute
+        pointer = get_col_pointer(constrained_col - 1);
+        for (int i = 0; i < recordCount; ++i) {
+            if (pointer[i] == query[constrained_col]) {
+                for (int j = constrained_col + 1; j < schema->attrs_count + 1; ++j) {
+                    if (query[j] >= 0) {
+                        pointer = get_col_pointer(j - 1) + i * schema->attr_sizes[j - 1];
+                        if (*((uint8_t *) pointer) != query[j]) {
+                            goto get_next;
+                        }
+                    }
+                }
+                converted = converter(get_col_pointer(col_avg) + i * attr_size);
+                if (avg + converted > doubleMax) {
+                    averages.emplace_back(avg);
+                    avg = 0;
+                }
+                avg += converted;
+                found_rows += 1;
+                get_next:
+                pointer = get_col_pointer(constrained_col - 1);
+            }
+        }
     }
-    averages.emplace_back(avg);
 
     if (averages.size() > 1) {
         float totalAvg = averages[0];
@@ -90,7 +127,7 @@ double cColumnStoreTable::SelectAvg(const uint8_t *query) const {
         return totalAvg;
     }
 
-    return avg / (float)recordCount;
+    return avg / (float)found_rows;
 }
 
 bool cColumnStoreTable::ReadFile(const char *filename) {
@@ -124,7 +161,7 @@ bool cColumnStoreTable::ReadFile(const char *filename) {
                 std::memcpy(colPointer, line + line_offset, schema->attr_sizes[i]);
                 bytes_read = schema->attr_sizes[i] + 1; // add one for semicolon
             } else if (schema->attr_sizes[i] == 1) {
-                *colPointer = line[line_offset];
+                *(uint8_t *)colPointer = line[line_offset] - '0';
                 bytes_read = 2; // byte value plus a semilocon
             } else if (schema->data_types[i] == 'I') {
                 sscanf(line + line_offset, "%d;%n", &load_int, &bytes_read);

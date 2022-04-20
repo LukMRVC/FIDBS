@@ -32,7 +32,7 @@ int main(int args_count, char *args[]) {
     char const *const query_file = args[3];
 
     const TableSchema *schema = TableSchema::getFromFile(schema_file, true);
-//    auto query_set = QuerySet::getFromFile(query_file, schema->attrs_count);
+    auto query_set = QuerySet::getFromFile(query_file, schema->attrs_count);
 
     cColumnStoreTable columnTable(schema);
     auto dataLoadDuration = timeit([&data_file, &columnTable]() {
@@ -41,17 +41,30 @@ int main(int args_count, char *args[]) {
 
     std::cout << "Data load duration: " << dataLoadDuration << "s" << std::endl;
 
-    char query[21];
-    query[0] = 5;
-    for (int i = 1; i < 21; ++i) {
-        query[i] = -1;
+    char sql_query[512];
+    memset(sql_query, 0, 512);
+
+    for (int i = 0; i < query_set->query_count; ++i) {
+        auto query = query_set->get_query(i);
+        auto col = query[0];
+        auto offset = 0;
+        offset = sprintf(sql_query, "SELECT AVG(a%d) FROM fidbs_col_table WHERE ", col + 1);
+
+        for (int s = 1; s < schema->attrs_count + 1; ++s) {
+            if (query[s] >= 0) {
+                offset += sprintf(sql_query + offset, "a%d = %d AND ", s, query[s]);
+            }
+        }
+
+        printf("%s\n", sql_query);
+
+        auto avgDuration = timeit([&columnTable, col, &query] {
+            double average = columnTable.SelectAvg((const int8_t *)query);
+            printf("Col %d AVG: %.6f \n", col, average);
+        });
+        printf("AVG(a%d) duration: %.4f \n", col, avgDuration);
     }
 
-    auto avgDuration = timeit([&columnTable, &query] {
-        double average = columnTable.SelectAvg((const uint8_t *)query);
-        printf("Col 0 AVG: %.3f \n", average);
-    });
-    std::cout << "AVG(a0) duration: " << avgDuration << "s" << std::endl;
 
 //    query[0] = 0;
 //    auto avg6Duration = timeit([&columnTable, &query] {

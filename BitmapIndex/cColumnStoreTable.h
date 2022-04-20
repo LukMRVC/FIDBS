@@ -29,7 +29,7 @@ public:
     ~cColumnStoreTable();
     bool reserve(uint32_t capacity);
     bool ReadFile(const char * filename);
-    double SelectAvg(const uint8_t * query) const;
+    double SelectAvg(const int8_t * query) const;
 };
 
 #endif //BITMAPINDEX_CCOLUMNSTORETABLE_H
