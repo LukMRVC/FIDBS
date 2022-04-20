@@ -41,6 +41,25 @@ int main(int args_count, char *args[]) {
 
     std::cout << "Data load duration: " << dataLoadDuration << "s" << std::endl;
 
+    char query[21];
+    query[0] = 5;
+    for (int i = 1; i < 21; ++i) {
+        query[i] = -1;
+    }
+
+    auto avgDuration = timeit([&columnTable, &query] {
+        double average = columnTable.SelectAvg((const uint8_t *)query);
+        printf("Col 0 AVG: %.3f \n", average);
+    });
+    std::cout << "AVG(a0) duration: " << avgDuration << "s" << std::endl;
+
+//    query[0] = 0;
+//    auto avg6Duration = timeit([&columnTable, &query] {
+//        double average = columnTable.SelectAvg((const uint8_t *)query);
+//        printf("Col 6 AVG: %.3f \n", average);
+//    });
+//    std::cout << "AVG(a6) duration: " << avg6Duration << "s" << std::endl;
+
     /*for (int i = 0; i < query_set->query_count; ++i) {
         auto query = query_set->get_query(i);
 

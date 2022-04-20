@@ -5,6 +5,8 @@
 #include "cColumnStoreTable.h"
 #include <vector>
 #include <stdexcept>
+#include <functional>
+#include <limits>
 
 bool cColumnStoreTable::reserve(uint32_t max_capacity) {
     if (mData != nullptr || schema == nullptr || recordSize == 0 || column_offsets == nullptr) return false;
@@ -53,31 +55,42 @@ double cColumnStoreTable::SelectAvg(const uint8_t *query) const {
 
     size_t col_avg = query[0];
     auto pointer = get_col_pointer(col_avg);
-    auto averages = std::vector<double>();
-    const int avg_count_max = 1000000;
-    averages.reserve( capacity / avg_count_max + 2);
+    auto averages = std::vector<float>();
     int iteration = 0;
     // get attribute size in bytes
     auto attr_size = schema->attr_sizes[col_avg];
-
-    do {
-        double avg = 0;
-        auto loopStop = recordCount - iteration * avg_count_max > avg_count_max ? avg_count_max : recordCount - iteration * avg_count_max;
-        for (int i = 0; i < loopStop; ++i) {
-            avg += (*(double *)pointer);
-            pointer +=  attr_size;
-        }
-        averages.emplace_back(avg);
-        iteration += 1;
-    } while (iteration * avg_count_max < recordCount);
-
-    double totalAvg = averages[0];
-    for (int i = 1; i < averages.size() - 1; ++i) {
-        auto n = i + 1;
-        totalAvg = ((n - 1) * totalAvg + averages[n - 1]) / n;
+    std::function<float(const uint8_t *)> converter;
+    if (schema->data_types[col_avg] == 'F') {
+        converter = convert_float;
+    } else {
+        throw std::runtime_error("Calculating average on non-float data");
     }
 
-    return totalAvg;
+    auto doubleMax = std::numeric_limits<float>::max();
+    float converted = 0;
+    float avg = 0;
+    for (int i = 0; i < recordCount; ++i) {
+        converted = converter(pointer);
+        if (avg + converted > doubleMax) {
+            averages.emplace_back(avg);
+            avg = 0;
+        }
+        avg += converted;
+        pointer +=  attr_size;
+    }
+    averages.emplace_back(avg);
+
+    if (averages.size() > 1) {
+        float totalAvg = averages[0];
+        for (int i = 1; i < averages.size() - 1; ++i) {
+            auto n = i + 1;
+            totalAvg = ((n - 1) * totalAvg + averages[n - 1]) / n;
+        }
+
+        return totalAvg;
+    }
+
+    return avg / (float)recordCount;
 }
 
 bool cColumnStoreTable::ReadFile(const char *filename) {
@@ -95,6 +108,8 @@ bool cColumnStoreTable::ReadFile(const char *filename) {
 
     int32_t load_int;
     float load_float;
+    int32_t bytes_read;
+
     while (!data.eof()) {
         line_offset = 0;
         data.getline(line, MAX_LEN);
@@ -107,21 +122,31 @@ bool cColumnStoreTable::ReadFile(const char *filename) {
             auto colPointer = get_col_pointer(i) + (schema->attr_sizes[i] * recordCount);
             if (schema->data_types[i] == 'C') {
                 std::memcpy(colPointer, line + line_offset, schema->attr_sizes[i]);
+                bytes_read = schema->attr_sizes[i] + 1; // add one for semicolon
             } else if (schema->attr_sizes[i] == 1) {
                 *colPointer = line[line_offset];
+                bytes_read = 2; // byte value plus a semilocon
             } else if (schema->data_types[i] == 'I') {
-                auto matched = sscanf(line + line_offset, "%d;", &load_int);
+                sscanf(line + line_offset, "%d;%n", &load_int, &bytes_read);
                 *(int *)colPointer = load_int;
             } else {
-                auto matched = sscanf(line + line_offset, "%f;", &load_float);
+                sscanf(line + line_offset, "%f;%n", &load_float, &bytes_read);
                 *(float *)colPointer = load_float;
             }
-            line_offset += schema->attr_sizes[i];
+            line_offset += bytes_read;
         }
         recordCount += 1;
     }
     data.close();
 
     return true;
+}
+
+//float cColumnStoreTable::convert_int_32t(const uint8_t * pointer) {
+//    return *(int32_t *)pointer;
+//}
+
+float cColumnStoreTable::convert_float(const uint8_t * pointer) {
+    return *(float *)pointer;
 }
 

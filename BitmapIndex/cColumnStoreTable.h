@@ -21,6 +21,8 @@ private:
         return mData + column_offsets[column];
     }
 
+//    inline static double convert_int_32t(const uint8_t *);
+    inline static float convert_float(const uint8_t *);
 
 public:
     explicit cColumnStoreTable(const TableSchema *, uint32_t = 0);
