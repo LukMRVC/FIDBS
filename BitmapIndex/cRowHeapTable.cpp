@@ -307,7 +307,7 @@ bool cRowHeapTable::get(int rowId, char * data) const {
 }
 
 bool cRowHeapTable::Find(const char * query, Cursor<int> & cursor) const {
-    if (hashIndex == nullptr && canUseHashIndex(query)) {
+    if (hashIndex == nullptr || !canUseHashIndex(query)) {
         return false;
     }
     return hashIndex->Select(query, cursor);

@@ -57,6 +57,14 @@ void PrintRecord(char * record, const TableSchema * schema, std::ofstream & outs
     outstream << outputBuffer << "\n";
 }
 
+void PrintQuery(const char * query, unsigned int attr_count) {
+    printf("Query: ");
+    for (int i = 0; i < attr_count; ++i) {
+        printf("%d;", query[i]);
+    }
+    printf("\n");
+}
+
 int main(int args_count, char *args[]) {
     if (args_count < 4) {
         std::cerr << "Program must be called with 3 args: [schema file] [data file] [query file]" << std::endl;
