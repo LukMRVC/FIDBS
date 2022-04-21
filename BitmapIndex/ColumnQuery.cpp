@@ -5,7 +5,9 @@
 #include <cstdio>
 #include <iostream>
 #include <cstdlib>
+#include <fstream>
 #include <chrono>
+#include <iomanip>
 #include "TableSchema.h"
 #include "QuerySet.h"
 #include "cColumnStoreTable.h"
@@ -33,7 +35,7 @@ int main(int args_count, char *args[]) {
     char const *const query_file = args[3];
 
     const TableSchema *schema = TableSchema::getFromFile(schema_file, true);
-    auto query_set = QuerySet::getFromFile(query_file, schema->attrs_count);
+    auto query_set = QuerySet::getFromFile(query_file, schema->attrs_count, true);
 
     cColumnStoreTable columnTable(schema);
     auto dataLoadDuration = timeit([&data_file, &columnTable]() {
@@ -46,28 +48,54 @@ int main(int args_count, char *args[]) {
         rowHeapTable.ReadFile(data_file, true);
     });
     std::cout << "Row data load duration: " << dataLoadDuration << "s" << std::endl;
+    std::ofstream output("./row_count_results.txt");
+    auto rowSelectCountDuration = timeit([&rowHeapTable, &output, &query_set] {
+        for (int i = 0; i < query_set->query_count; ++i) {
+            auto query = query_set->get_query(i);
+            auto count = rowHeapTable.Select(query + 1);
+            output << count << "\n";
+        }
+    });
+    output.close();
+    printf("Row COUNT(*) duration: %.4f s\n", rowSelectCountDuration);
 
-    auto rowAvgDuration = timeit([&rowHeapTable, &query_set] {
+    rowHeapTable.createBitmapIndex();
+
+    output.open("./index_count_results.txt");
+    auto bitmapIndexCountDuration = timeit([&rowHeapTable, &output, &query_set] {
+        for (int i = 0; i < query_set->query_count; ++i) {
+            auto query = query_set->get_query(i);
+            auto count = rowHeapTable.SelectWithIndex(query + 1);
+            output << count << "\n";
+        }
+    });
+    output.close();
+    printf("Index COUNT(*) duration: %.4f \n", bitmapIndexCountDuration);
+
+    output.open("./row_avg_results.txt");
+    output << std::fixed << std::setprecision(6);
+    auto rowAvgDuration = timeit([&rowHeapTable, &output, &query_set] {
         for (int i = 0; i < query_set->query_count; ++i) {
             auto query = query_set->get_query(i);
             auto avg = rowHeapTable.SelectAvg(query);
-            printf("RowTable AVG(a%d): %.6f \n", query[0], avg);
+            output << avg << "\n";
+//            printf("RowTable AVG(a%d): %.6f \n", query[0], avg);
         }
     });
-    printf("RowTable AVG duration: %.4f \n", rowAvgDuration);
+    printf("RowTable AVG duration: %.4f s \n", rowAvgDuration);
+    output.close();
 
-    auto colAvgDuration = timeit([&columnTable, &query_set] {
+    output.open("./col_avg_results.txt");
+    auto colAvgDuration = timeit([&columnTable, &output, &query_set] {
         for (int i = 0; i < query_set->query_count; ++i) {
             auto query = query_set->get_query(i);
-            auto col = query[0];
-            double average = columnTable.SelectAvg((const int8_t *)query);
-            printf("ColTable AVG(a%d): %.6f \n", col, average);
+            auto average = columnTable.SelectAvg((const int8_t *)query);
+            output << average << "\n";
+            //            printf("ColTable AVG(a%d): %.6f \n", col, average);
         }
     });
-
-    printf("ColTable AVG duration: %.4f \n", colAvgDuration);
-
-
+    output.close();
+    printf("ColTable AVG duration: %.4f s \n", colAvgDuration);
 
     return 0;
 }

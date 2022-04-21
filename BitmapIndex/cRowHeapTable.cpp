@@ -225,17 +225,17 @@ bool cRowHeapTable::ReadFile(const char * filename, bool with_data_types) {
         if (with_data_types) {
             for (int i = 0; i < cols; ++i) {
                 if (schema->data_types[i] == 'C') {
-                    std::memcpy(rowPointer, line + line_offset, schema->attr_sizes[i]);
+                    std::memcpy((rowPointer + attributeOffsets[i]), line + line_offset, schema->attr_sizes[i]);
                     bytes_read = schema->attr_sizes[i] + 1;
                 } else if (schema->attr_sizes[i] == 1) {
-                    *(uint8_t *) rowPointer = line[line_offset] - '0';
+                    *(uint8_t *) (rowPointer + attributeOffsets[i]) = line[line_offset] - '0';
                     bytes_read = 2;
                 } else if (schema->data_types[i] == 'I') {
                     sscanf(line + line_offset, "%d;%n", &load_int, &bytes_read);
-                    *(int *) rowPointer = load_int;
+                    *(int *) (rowPointer + attributeOffsets[i]) = load_int;
                 } else {
                     sscanf(line + line_offset, "%f;%n", &load_float, &bytes_read);
-                    *(float *) rowPointer = load_float;
+                    *(float *) (rowPointer + attributeOffsets[i]) = load_float;
                 }
                 line_offset += bytes_read; // add 1 to offset comma
             }
