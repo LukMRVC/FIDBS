@@ -115,6 +115,7 @@ double cColumnStoreTable::SelectAvg(const int8_t *query) const {
                 pointer = get_col_pointer(constrained_col - 1);
             }
         }
+        averages.emplace_back(avg);
     }
 
     if (averages.size() > 1) {

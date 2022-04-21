@@ -8,6 +8,8 @@
 #include <cstdlib>
 #include <fstream>
 #include <algorithm>
+#include <vector>
+#include <limits>
 
 cRowHeapTable::~cRowHeapTable() {
     if (mData != nullptr) {
@@ -195,7 +197,7 @@ bool cRowHeapTable::createBitmapIndex() {
     return createBitmapIndex(schema->attr_max_values, cols);
 }
 
-bool cRowHeapTable::ReadFile(const char * filename) {
+bool cRowHeapTable::ReadFile(const char * filename, bool with_data_types) {
     int line_offset;
     constexpr int MAX_LEN = 1024;
     char line[MAX_LEN];
@@ -215,16 +217,38 @@ bool cRowHeapTable::ReadFile(const char * filename) {
         if (line[0] == 0) {
             continue;
         }
+        int load_int;
+        float load_float;
+        int bytes_read;
 
         auto rowPointer = getRowPointer(rowCount);
-        for (int i = 0; i < cols; ++i) {
-            if (attributeSizes[i] > 1) {
-                std::memcpy(rowPointer + attributeOffsets[i], line + line_offset, attributeSizes[i]);
-            } else {
-                // C way to convert char to int
-                rowPointer[attributeOffsets[i]] = line[line_offset] - '0';
+        if (with_data_types) {
+            for (int i = 0; i < cols; ++i) {
+                if (schema->data_types[i] == 'C') {
+                    std::memcpy(rowPointer, line + line_offset, schema->attr_sizes[i]);
+                    bytes_read = schema->attr_sizes[i] + 1;
+                } else if (schema->attr_sizes[i] == 1) {
+                    *(uint8_t *) rowPointer = line[line_offset] - '0';
+                    bytes_read = 2;
+                } else if (schema->data_types[i] == 'I') {
+                    sscanf(line + line_offset, "%d;%n", &load_int, &bytes_read);
+                    *(int *) rowPointer = load_int;
+                } else {
+                    sscanf(line + line_offset, "%f;%n", &load_float, &bytes_read);
+                    *(float *) rowPointer = load_float;
+                }
+                line_offset += bytes_read; // add 1 to offset comma
             }
-            line_offset += attributeSizes[i] + 1; // add 1 to offset comma
+        } else {
+            for (int i = 0; i < cols; ++i) {
+                if (attributeSizes[i] > 1) {
+                    std::memcpy(rowPointer + attributeOffsets[i], line + line_offset, attributeSizes[i]);
+                } else {
+                    // C way to convert char to int
+                    rowPointer[attributeOffsets[i]] = line[line_offset] - '0';
+                }
+                line_offset += attributeSizes[i] + 1; // add 1 to offset comma
+            }
         }
         rowCount += 1;
     }
@@ -267,9 +291,6 @@ void cRowHeapTable::createHashTableIndex(const int *attr_order) {
 
         hashIndex->Add(key, i);
         statistics->IncrementData(key);
-//        if (i % 100000 == 0) {
-//            printf("%d / %d\n", i, recordCount);
-//        }
     }
 
     delete [] key;
@@ -290,4 +311,76 @@ bool cRowHeapTable::Find(const char * query, Cursor<int> & cursor) const {
         return false;
     }
     return hashIndex->Select(query, cursor);
+}
+
+float cRowHeapTable::SelectAvg(const char * query) const {
+    auto found = 0;
+    size_t col_avg = query[0];
+    auto averages = std::vector<float>();
+    if (schema->data_types[col_avg] != 'F') {
+        throw std::runtime_error("Calculating average on non-float data");
+    }
+
+    float avg = 0 ;
+    float converted = 0;
+    auto float_max = std::numeric_limits<float>::max();
+
+    bool is_constrained = false;
+    size_t constrained_col = 0;
+    for (int i = 1; i < schema->attrs_count + 1; ++i) {
+        if (query[i] >= 0) {
+            constrained_col = i;
+            is_constrained = true;
+            break;
+        }
+    }
+
+    if (!is_constrained) {
+        found = rowCount;
+        for (int i = 0; i < rowCount; ++i) {
+            auto row = getRowPointer(i);
+            converted = *((float *) (row + attributeOffsets[col_avg]));
+            if (avg + converted > float_max) {
+                averages.emplace_back(avg);
+                avg = 0;
+            }
+            avg += converted;
+        }
+        averages.emplace_back(avg);
+    } else {
+        for (int i = 0; i < rowCount; ++i) {
+            auto row = getRowPointer(i);
+            for (int j = 0; j < cols; ++j) {
+                auto col_value = query[j + 1];
+                if (col_value < 0) {
+                    continue;
+                }
+                uint8_t * data = (uint8_t *) row + attributeOffsets[j];
+                if (*data != col_value) {
+                    goto continue_outer;
+                }
+            }
+            found += 1;
+            converted = *((float *) (row + attributeOffsets[col_avg]));
+            if (avg + converted > float_max) {
+                averages.emplace_back(avg);
+                avg = 0;
+            }
+            avg += converted;
+            continue_outer:;
+        }
+        averages.emplace_back(avg);
+    }
+
+    if (averages.size() > 1) {
+        float totalAvg = averages[0];
+        for (int i = 1; i < averages.size() - 1; ++i) {
+            auto n = i + 1;
+            totalAvg = ((n - 1) * totalAvg + averages[n - 1]) / n;
+        }
+
+        return totalAvg;
+    }
+
+    return avg / (float)found;
 }

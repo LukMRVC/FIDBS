@@ -46,9 +46,10 @@ public:
     ~cRowHeapTable();
 
     bool Insert(char * rec);
-    bool ReadFile(const char * filename);
+    bool ReadFile(const char * filename, bool with_data_types = false);
     unsigned int Select(unsigned int conditions[][2], std::size_t size) const;
     unsigned int Select(const char *) const;
+    float SelectAvg(const char *) const;
     unsigned int SelectWithIndex(unsigned int conditions[][2], std::size_t size) const;
     unsigned int SelectWithIndex(const char *) const;
     bool Find(const char *, Cursor<int> &) const;

@@ -9,6 +9,7 @@
 #include "TableSchema.h"
 #include "QuerySet.h"
 #include "cColumnStoreTable.h"
+#include "cRowHeapTable.h"
 
 inline double getThroughput(int opsCount, double period, int unit) {
     return (((double) opsCount / (double) unit)) / period;
@@ -38,47 +39,35 @@ int main(int args_count, char *args[]) {
     auto dataLoadDuration = timeit([&data_file, &columnTable]() {
         columnTable.ReadFile(data_file);
     });
+    std::cout << "Column data load duration: " << dataLoadDuration << "s" << std::endl;
 
-    std::cout << "Data load duration: " << dataLoadDuration << "s" << std::endl;
+    cRowHeapTable rowHeapTable(schema);
+    dataLoadDuration = timeit([&data_file, &rowHeapTable]() {
+        rowHeapTable.ReadFile(data_file, true);
+    });
+    std::cout << "Row data load duration: " << dataLoadDuration << "s" << std::endl;
 
-    char sql_query[512];
-    memset(sql_query, 0, 512);
-
-    for (int i = 0; i < query_set->query_count; ++i) {
-        auto query = query_set->get_query(i);
-        auto col = query[0];
-        auto offset = 0;
-        offset = sprintf(sql_query, "SELECT AVG(a%d) FROM fidbs_col_table WHERE ", col + 1);
-
-        for (int s = 1; s < schema->attrs_count + 1; ++s) {
-            if (query[s] >= 0) {
-                offset += sprintf(sql_query + offset, "a%d = %d AND ", s, query[s]);
-            }
+    auto rowAvgDuration = timeit([&rowHeapTable, &query_set] {
+        for (int i = 0; i < query_set->query_count; ++i) {
+            auto query = query_set->get_query(i);
+            auto avg = rowHeapTable.SelectAvg(query);
+            printf("RowTable AVG(a%d): %.6f \n", query[0], avg);
         }
+    });
+    printf("RowTable AVG duration: %.4f \n", rowAvgDuration);
 
-        printf("%s\n", sql_query);
-
-        auto avgDuration = timeit([&columnTable, col, &query] {
+    auto colAvgDuration = timeit([&columnTable, &query_set] {
+        for (int i = 0; i < query_set->query_count; ++i) {
+            auto query = query_set->get_query(i);
+            auto col = query[0];
             double average = columnTable.SelectAvg((const int8_t *)query);
-            printf("Col %d AVG: %.6f \n", col, average);
-        });
-        printf("AVG(a%d) duration: %.4f \n", col, avgDuration);
-    }
+            printf("ColTable AVG(a%d): %.6f \n", col, average);
+        }
+    });
+
+    printf("ColTable AVG duration: %.4f \n", colAvgDuration);
 
 
-//    query[0] = 0;
-//    auto avg6Duration = timeit([&columnTable, &query] {
-//        double average = columnTable.SelectAvg((const uint8_t *)query);
-//        printf("Col 6 AVG: %.3f \n", average);
-//    });
-//    std::cout << "AVG(a6) duration: " << avg6Duration << "s" << std::endl;
-
-    /*for (int i = 0; i < query_set->query_count; ++i) {
-        auto query = query_set->get_query(i);
-
-        double average = columnTable.SelectAvg((const uint8_t *)query);
-        printf("%.2f\n", average);
-    }*/
 
     return 0;
 }
