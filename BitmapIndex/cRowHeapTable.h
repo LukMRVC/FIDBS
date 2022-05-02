@@ -33,6 +33,12 @@ private:
     }
 
     cHashTable<int> * statistics = nullptr;
+
+    static int loadBytes(char * into, char * from, unsigned int max_len);
+    static int loadFloat(char * into, char * from, unsigned int max_len);
+    static int loadInt(char * into, char * from, unsigned int max_len);
+    static int loadByte(char * into, char * from, unsigned int max_len);
+
 public:
     bool canUseHashIndex(const char * query) const;
     cHashTable<int> * hashIndex = nullptr;
@@ -50,9 +56,11 @@ public:
     unsigned int Select(unsigned int conditions[][2], std::size_t size) const;
     unsigned int Select(const char *) const;
     float SelectAvg(const char *) const;
+    float SelectAvgWithIndex(const char *) const;
     unsigned int SelectWithIndex(unsigned int conditions[][2], std::size_t size) const;
     unsigned int SelectWithIndex(const char *) const;
     bool Find(const char *, Cursor<int> &) const;
+    bool isQueryConstrained(const char *) const;
 
     bool get(int rowId, char * data) const;
     static void generateRecord(char *rec, const int attr_sizes[], const int *attrs_max_value, int attr_count);

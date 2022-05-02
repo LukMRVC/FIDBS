@@ -30,6 +30,10 @@ public:
     bool reserve(uint32_t capacity);
     bool ReadFile(const char * filename);
     double SelectAvg(const int8_t * query) const;
+    int isQueryConstrained(const int8_t *) const;
+    const int getRecordCount() const {
+        return recordCount;
+    }
 };
 
 #endif //BITMAPINDEX_CCOLUMNSTORETABLE_H

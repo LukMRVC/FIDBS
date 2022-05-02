@@ -48,6 +48,15 @@ cColumnStoreTable::~cColumnStoreTable() {
     }
 }
 
+int cColumnStoreTable::isQueryConstrained(const int8_t *query) const {
+    for (int i = 1; i < schema->attrs_count + 1; ++i) {
+        if (query[i] >= 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 double cColumnStoreTable::SelectAvg(const int8_t *query) const {
     if (column_offsets == nullptr) {
         throw std::runtime_error("Column offsets were not set!");
@@ -66,15 +75,8 @@ double cColumnStoreTable::SelectAvg(const int8_t *query) const {
         throw std::runtime_error("Calculating average on non-float data");
     }
 
-    bool is_constrained = false;
-    size_t constrained_col = 0;
-    for (int i = 1; i < schema->attrs_count + 1; ++i) {
-        if (query[i] >= 0) {
-            constrained_col = i;
-            is_constrained = true;
-            break;
-        }
-    }
+    int constrained_col = isQueryConstrained(query);
+    bool is_constrained = constrained_col >= 0;
 
     auto doubleMax = std::numeric_limits<float>::max();
     float converted = 0;

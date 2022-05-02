@@ -22,6 +22,10 @@ BitmapIndex::BitmapIndex(const int *attrs_max_value, int attrs_count, unsigned i
     }
     bitSize = (short)maxValuesSum;
     byteSize = BitString::getByteSizeFromBits(bitSize);
+    uint64_t byteVals = 0xff;
+    for (int i = 0; i < byteSize; ++i) {
+        maxBytesValue |= byteVals << (i * 8);
+    }
     mData = new char [byteSize * capacity];
     memset(mData, 0, byteSize * capacity);
     SelectMask = new char [byteSize];
@@ -87,26 +91,7 @@ int BitmapIndex::Select(unsigned int conditions[][2], int size) const {
 int BitmapIndex::Select(const char * query) const {
     int rowsFound = 0;
     // At the end, bit negate ~ the mask
-    memset(SelectMask, 0, byteSize);
-    for (int col = 0; col < attrsCount; ++col) {
-        if (!shouldColBeIndexed(attrsMaxValue[col])) {
-            continue;
-        }
-        auto col_value = query[col];
-        if (col_value < 0) {
-            for (int i = 0; i < attrsMaxValue[col]; ++i) {
-                BitString::setBitString(SelectMask, bitIndexAttributeOffset[col] + i);
-            }
-        } else {
-            BitString::setBitString(SelectMask, bitIndexAttributeOffset[col] + col_value);
-        }
-    }
-
-    uint64_t maxBytesValue = 0;
-    uint64_t byteVals = 0xff;
-    for (int i = 0; i < byteSize; ++i) {
-        maxBytesValue |= byteVals << (i * 8);
-    }
+    prepare(query, SelectMask);
 
     auto indexRecord = getRowPointer(0);
     auto maxLoops = recordCount >> 1;
@@ -131,4 +116,42 @@ int BitmapIndex::Select(const char * query) const {
 
 
     return rowsFound;
+}
+
+char *BitmapIndex::prepare(const char * query, char * allocatedMask) const {
+    char * mask;
+    if (allocatedMask == nullptr) {
+        mask = new char[byteSize];
+        memset(mask, 0, byteSize);
+    } else {
+        memset(allocatedMask, 0, byteSize);
+    }
+
+    for (int col = 0; col < attrsCount; ++col) {
+        if (!shouldColBeIndexed(attrsMaxValue[col])) {
+            continue;
+        }
+        auto col_value = query[col];
+        if (col_value < 0) {
+            for (int i = 0; i < attrsMaxValue[col]; ++i) {
+                BitString::setBitString(allocatedMask == nullptr ? mask : allocatedMask, bitIndexAttributeOffset[col] + i);
+            }
+        } else {
+            BitString::setBitString(allocatedMask == nullptr ? mask : allocatedMask, bitIndexAttributeOffset[col] + col_value);
+        }
+    }
+
+    return allocatedMask == nullptr ? mask : allocatedMask;
+}
+
+int BitmapIndex::selectNext(char * mask, int start) const {
+    auto indexRecord = getRowPointer(start);
+    for (int i = start; i < recordCount; ++i) {
+        if (BitString::equals(mask, indexRecord, maxBytesValue)) {
+            return i;
+        }
+        indexRecord += byteSize;
+    }
+
+    return -1;
 }
