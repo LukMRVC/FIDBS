@@ -6,8 +6,6 @@
 #include <cstdint>
 #include <cstring>
 #include <cstdlib>
-#include <fstream>
-#include <algorithm>
 #include <vector>
 #include <limits>
 #include <functional>
@@ -449,20 +447,19 @@ int cRowHeapTable::loadBytes(char *into, char *from, unsigned int max_len) {
 }
 
 int cRowHeapTable::loadFloat(char *into, char *from, unsigned int max_len) {
-    float load_float;
-    int load_bytes;
-    sscanf(from, "%f;%n", &load_float, &load_bytes);
-    * (float *) into = load_float;
-    return load_bytes;
+    auto offset = 1;
+    while (*(from + offset) != ';')
+        offset += 1;
+    *(float *) into = std::strtof(from, nullptr);
+    return offset + 1;
 }
 
 int cRowHeapTable::loadInt(char *into, char *from, unsigned int max_len) {
-    int load_int;
-    int load_bytes;
-    sscanf(from, "%d;%n", &load_int, &load_bytes);
-    *(int * ) into = load_int;
-
-    return load_bytes;
+    auto offset = 1;
+    while (*(from + offset) != ';')
+        offset += 1;
+    *(int *) into = (int)std::strtol(from, nullptr, 10);
+    return offset + 1;
 }
 
 int cRowHeapTable::loadByte(char *into, char *from, unsigned int max_len) {

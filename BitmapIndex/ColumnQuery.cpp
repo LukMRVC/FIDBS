@@ -42,23 +42,23 @@ int main(int args_count, char *args[]) {
         columnTable.ReadFile(data_file);
     });
 
-    auto throughput = getThroughput(columnTable.getRecordCount(), dataLoadDuration, 1);
-    std::cout << "Column data load duration: " << dataLoadDuration << "s, " << throughput << " op/s" << std::endl;
+    auto throughput = getThroughput(columnTable.getRecordCount(), dataLoadDuration, 1000000);
+    std::cout << "Column data load duration: " << dataLoadDuration << "s, " << throughput << "m op/s" << std::endl;
 
     cRowHeapTable rowHeapTable(schema);
     dataLoadDuration = timeit([&data_file, &rowHeapTable]() {
         rowHeapTable.ReadFile(data_file, true);
     });
-    throughput = getThroughput(rowHeapTable.getRowCount(), dataLoadDuration, 1);
-    std::cout << "Row data load duration: " << dataLoadDuration << "s, " << throughput << " op/s" << std::endl;
+    throughput = getThroughput(rowHeapTable.getRowCount(), dataLoadDuration, 1000000);
+    std::cout << "Row data load duration: " << dataLoadDuration << "s, " << throughput << "m op/s" << std::endl;
 
     auto bitmapCreationDuration = timeit([&rowHeapTable] {
         if (!rowHeapTable.createBitmapIndex()) {
             throw std::runtime_error("Failed to create bitmap index");
         }
     });
-    throughput = getThroughput(rowHeapTable.getRowCount(), bitmapCreationDuration, 1);
-    std::cout << "BitmapIndex load duration: " << bitmapCreationDuration << "s, " << throughput << " op/s" << std::endl;
+    throughput = getThroughput(rowHeapTable.getRowCount(), bitmapCreationDuration, 1000000);
+    std::cout << "BitmapIndex load duration: " << bitmapCreationDuration << "s, " << throughput << "m op/s" << std::endl;
 
 
     double constrained_duration = 0;

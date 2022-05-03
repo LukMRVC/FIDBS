@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <functional>
 #include <limits>
+#include <cstdlib>
 
 bool cColumnStoreTable::reserve(uint32_t max_capacity) {
     if (mData != nullptr || schema == nullptr || recordSize == 0 || column_offsets == nullptr) return false;
@@ -167,11 +168,17 @@ bool cColumnStoreTable::ReadFile(const char *filename) {
                 *(uint8_t *)colPointer = line[line_offset] - '0';
                 bytes_read = 2; // byte value plus a semilocon
             } else if (schema->data_types[i] == 'I') {
-                sscanf(line + line_offset, "%d;%n", &load_int, &bytes_read);
-                *(int *)colPointer = load_int;
+                auto offset = line_offset + 1;
+                while (*(line + offset) != ';')
+                    offset += 1;
+                bytes_read = offset - line_offset + 1;
+                *(int *)colPointer = (int)std::strtol(line + line_offset, nullptr, 10);
             } else {
-                sscanf(line + line_offset, "%f;%n", &load_float, &bytes_read);
-                *(float *)colPointer = load_float;
+                auto offset = line_offset + 1;
+                while (*(line + offset) != ';')
+                    offset += 1;
+                bytes_read = offset - line_offset + 1;
+                *(float *)colPointer = std::strtof(line + line_offset, nullptr);
             }
             line_offset += bytes_read;
         }
