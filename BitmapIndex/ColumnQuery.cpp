@@ -4,8 +4,8 @@
 
 #include <cstdio>
 #include <iostream>
+#include <stdexcept>
 #include <cstdlib>
-#include <fstream>
 #include <chrono>
 #include <iomanip>
 #include "TableSchema.h"
@@ -35,67 +35,116 @@ int main(int args_count, char *args[]) {
     char const *const query_file = args[3];
 
     const TableSchema *schema = TableSchema::getFromFile(schema_file, true);
-    auto query_set = QuerySet::getFromFile(query_file, schema->attrs_count, true);
+    auto query_set = QuerySet::getFromFile(query_file, schema->attrs_count);
 
     cColumnStoreTable columnTable(schema);
     auto dataLoadDuration = timeit([&data_file, &columnTable]() {
         columnTable.ReadFile(data_file);
     });
-    std::cout << "Column data load duration: " << dataLoadDuration << "s" << std::endl;
+
+    auto throughput = getThroughput(columnTable.getRecordCount(), dataLoadDuration, 1000000);
+    std::cout << "Column data load duration: " << dataLoadDuration << "s, " << throughput << "m op/s" << std::endl;
 
     cRowHeapTable rowHeapTable(schema);
     dataLoadDuration = timeit([&data_file, &rowHeapTable]() {
         rowHeapTable.ReadFile(data_file, true);
     });
-    std::cout << "Row data load duration: " << dataLoadDuration << "s" << std::endl;
-    std::ofstream output("./row_count_results.txt");
-    auto rowSelectCountDuration = timeit([&rowHeapTable, &output, &query_set] {
-        for (int i = 0; i < query_set->query_count; ++i) {
-            auto query = query_set->get_query(i);
-            auto count = rowHeapTable.Select(query + 1);
-            output << count << "\n";
+    throughput = getThroughput(rowHeapTable.getRowCount(), dataLoadDuration, 1000000);
+    std::cout << "Row data load duration: " << dataLoadDuration << "s, " << throughput << "m op/s" << std::endl;
+
+    auto bitmapCreationDuration = timeit([&rowHeapTable] {
+        if (!rowHeapTable.createBitmapIndex()) {
+            throw std::runtime_error("Failed to create bitmap index");
         }
     });
-    output.close();
-    printf("Row COUNT(*) duration: %.4f s\n", rowSelectCountDuration);
+    throughput = getThroughput(rowHeapTable.getRowCount(), bitmapCreationDuration, 1000000);
+    std::cout << "BitmapIndex load duration: " << bitmapCreationDuration << "s, " << throughput << "m op/s" << std::endl;
 
-    rowHeapTable.createBitmapIndex();
 
-    output.open("./index_count_results.txt");
-    auto bitmapIndexCountDuration = timeit([&rowHeapTable, &output, &query_set] {
-        for (int i = 0; i < query_set->query_count; ++i) {
-            auto query = query_set->get_query(i);
-            auto count = rowHeapTable.SelectWithIndex(query + 1);
-            output << count << "\n";
+    double constrained_duration = 0;
+    double unconstrained_duration = 0;
+    std::ofstream avg_output("./column_avg_results.txt");
+    avg_output << std::fixed << std::setprecision(6);
+    auto constrained_queries = 0;
+
+    for (int i = 0; i < query_set->query_count; ++i) {
+        auto query = query_set->get_query(i);
+        auto is_constrained = columnTable.isQueryConstrained((const int8_t *) query) >= 0;
+        auto duration = timeit([&columnTable, &query, &avg_output] {
+            double average = columnTable.SelectAvg((const int8_t *) query);
+            avg_output << average << "\n";
+        });
+
+        if (is_constrained) {
+            constrained_duration += duration;
+            constrained_queries += 1;
+        } else {
+            unconstrained_duration += duration;
         }
-    });
-    output.close();
-    printf("Index COUNT(*) duration: %.4f \n", bitmapIndexCountDuration);
+    }
+    int unconstrained_queries = query_set->query_count - constrained_queries;
+    printf("CONSTRAINED query count: %d \n", constrained_queries);
+    printf("UNCONSTRAINED query count: %d \n", unconstrained_queries);
 
-    output.open("./row_avg_results.txt");
-    output << std::fixed << std::setprecision(6);
-    auto rowAvgDuration = timeit([&rowHeapTable, &output, &query_set] {
-        for (int i = 0; i < query_set->query_count; ++i) {
-            auto query = query_set->get_query(i);
-            auto avg = rowHeapTable.SelectAvg(query);
-            output << avg << "\n";
-//            printf("RowTable AVG(a%d): %.6f \n", query[0], avg);
-        }
-    });
-    printf("RowTable AVG duration: %.4f s \n", rowAvgDuration);
-    output.close();
+    printf("ColTable AVG CONSTRAINED duration: %.6f s, %.1f op/s.\n", constrained_duration,
+           getThroughput(constrained_queries, constrained_duration, 1));
+    printf("ColTable AVG UNCONSTRAINED duration: %.6f s, %.1f op/s.\n", unconstrained_duration,
+           getThroughput(unconstrained_queries, unconstrained_duration, 1));
+    avg_output.close();
 
-    output.open("./col_avg_results.txt");
-    auto colAvgDuration = timeit([&columnTable, &output, &query_set] {
-        for (int i = 0; i < query_set->query_count; ++i) {
-            auto query = query_set->get_query(i);
-            auto average = columnTable.SelectAvg((const int8_t *)query);
-            output << average << "\n";
-            //            printf("ColTable AVG(a%d): %.6f \n", col, average);
+
+    constrained_duration = 0;
+    unconstrained_duration = 0;
+    avg_output.open("./row_avg_results.txt");
+    avg_output << std::fixed << std::setprecision(6);
+
+    for (int i = 0; i < query_set->query_count; ++i) {
+        auto query = query_set->get_query(i);
+        auto is_constrained = rowHeapTable.isQueryConstrained(query);
+
+        auto duration = timeit([&rowHeapTable, &query, &avg_output] {
+            double average = rowHeapTable.SelectAvg(query);
+            avg_output << average << "\n";
+        });
+
+        if (is_constrained) {
+            constrained_duration += duration;
+        } else {
+            unconstrained_duration += duration;
         }
-    });
-    output.close();
-    printf("ColTable AVG duration: %.4f s \n", colAvgDuration);
+    }
+    avg_output.close();
+    printf("RowTable AVG CONSTRAINED duration: %.6f s, %.1f op/s.\n", constrained_duration,
+           getThroughput(constrained_queries, constrained_duration, 1));
+    printf("RowTable AVG UNCONSTRAINED duration: %.6f s, %.1f op/s.\n", unconstrained_duration,
+           getThroughput(unconstrained_queries, unconstrained_duration, 1));
+
+
+    constrained_duration = 0;
+    unconstrained_duration = 0;
+    avg_output.open("./index_avg_results.txt");
+    avg_output << std::fixed << std::setprecision(6);
+
+    for (int i = 0; i < query_set->query_count; ++i) {
+        auto query = query_set->get_query(i);
+        auto is_constrained = rowHeapTable.isQueryConstrained(query);
+
+        auto duration = timeit([&rowHeapTable, &query, &avg_output] {
+            double average = rowHeapTable.SelectAvgWithIndex(query);
+            avg_output << average << "\n";
+        });
+
+        if (is_constrained) {
+            constrained_duration += duration;
+        } else {
+            unconstrained_duration += duration;
+        }
+    }
+    avg_output.close();
+    printf("BitmapIndex AVG CONSTRAINED duration: %.6f s, %.1f op/s.\n", constrained_duration,
+           getThroughput(constrained_queries, constrained_duration, 1));
+    printf("BitmapIndex AVG UNCONSTRAINED duration: %.6f s, %.1f op/s.\n", unconstrained_duration,
+           getThroughput(unconstrained_queries, unconstrained_duration, 1));
 
     return 0;
 }

@@ -17,6 +17,7 @@ private:
     int * bitIndexAttributeOffset = nullptr;
     unsigned int recordCount = 0;
     char * SelectMask;
+    uint64_t maxBytesValue = 0;
 
     unsigned int capacity = 0;
     [[nodiscard]] inline char * getRowPointer(unsigned int rowId) const {
@@ -34,6 +35,9 @@ public:
         return byteSize * capacity;
     }
 
+
+    char * prepare(const char *, char * = nullptr) const;
+    int selectNext(char *, int = 0) const;
 
     void createRecord(const char *rec, const unsigned int *attributeSizes);
     int Select(unsigned int conditions[][2], int size) const;

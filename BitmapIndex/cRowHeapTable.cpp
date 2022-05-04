@@ -6,10 +6,10 @@
 #include <cstdint>
 #include <cstring>
 #include <cstdlib>
-#include <fstream>
-#include <algorithm>
 #include <vector>
 #include <limits>
+#include <functional>
+#include <array>
 
 cRowHeapTable::~cRowHeapTable() {
     if (mData != nullptr) {
@@ -18,7 +18,7 @@ cRowHeapTable::~cRowHeapTable() {
     }
 
     if (attributeSizes != nullptr) {
-        delete [] attributeSizes;
+        delete[] attributeSizes;
         attributeSizes = nullptr;
     }
 
@@ -60,7 +60,7 @@ cRowHeapTable::cRowHeapTable(const int *attrsSize, unsigned int length, unsigned
     }
 }
 
-cRowHeapTable::cRowHeapTable(const TableSchema * schema) {
+cRowHeapTable::cRowHeapTable(const TableSchema *schema) {
     cols = schema->attrs_count;
     rowSize = schema->record_size;
     attributeOffsets = new unsigned int[cols];
@@ -93,7 +93,7 @@ unsigned int cRowHeapTable::Select(unsigned int conditions[][2], std::size_t siz
                 continue;
             }
 
-            uint8_t * data = (uint8_t *) row + attributeOffsets[col];
+            uint8_t *data = (uint8_t *) row + attributeOffsets[col];
             if (*data != col_value) {
                 goto continue_outer;
             }
@@ -105,7 +105,7 @@ unsigned int cRowHeapTable::Select(unsigned int conditions[][2], std::size_t siz
     return found;
 }
 
-unsigned int cRowHeapTable::Select(const char * query) const {
+unsigned int cRowHeapTable::Select(const char *query) const {
     auto found = 0;
     // maybe detect if the inner loop can start from bigger number
     // to speed up everything a bit
@@ -117,7 +117,7 @@ unsigned int cRowHeapTable::Select(const char * query) const {
             if (col_value < 0) {
                 continue;
             }
-            uint8_t * data = (uint8_t *) row + attributeOffsets[j];
+            uint8_t *data = (uint8_t *) row + attributeOffsets[j];
             if (*data != col_value) {
                 goto continue_outer;
             }
@@ -132,7 +132,7 @@ unsigned int cRowHeapTable::SelectWithIndex(unsigned int conditions[][2], std::s
     return bitmapIndex->Select(conditions, size);
 }
 
-bool cRowHeapTable::canUseHashIndex(const char * query) const {
+bool cRowHeapTable::canUseHashIndex(const char *query) const {
     for (int i = 0; i < cols; ++i) {
         if (query[i] < 0 && schema->attr_max_values[i] > 0) {
             return false;
@@ -141,7 +141,7 @@ bool cRowHeapTable::canUseHashIndex(const char * query) const {
     return true;
 }
 
-unsigned int cRowHeapTable::SelectWithIndex(const char * query) const {
+unsigned int cRowHeapTable::SelectWithIndex(const char *query) const {
     if (hashIndex != nullptr && statistics != nullptr) {
         bool canUseHashStats = canUseHashIndex(query);
 
@@ -162,7 +162,7 @@ unsigned int cRowHeapTable::SelectWithIndex(const char * query) const {
 void cRowHeapTable::generateRecord(
         char *rec,
         const int attr_sizes[],
-        const int * attrs_max_value,
+        const int *attrs_max_value,
         int attr_count
 ) {
     auto offset = 0;
@@ -180,11 +180,11 @@ void cRowHeapTable::generateRecord(
     }
 }
 
-bool cRowHeapTable::createBitmapIndex(const int * attrs_max_value, int attr_count) {
+bool cRowHeapTable::createBitmapIndex(const int *attrs_max_value, int attr_count) {
     bitmapIndex = new BitmapIndex(attrs_max_value, attr_count, capacity);
     int i = 0;
     for (; i < rowCount; ++i) {
-        const char * row = getRowPointer(i);
+        const char *row = getRowPointer(i);
         bitmapIndex->createRecord(row, attributeSizes);
     }
     return true;
@@ -197,12 +197,17 @@ bool cRowHeapTable::createBitmapIndex() {
     return createBitmapIndex(schema->attr_max_values, cols);
 }
 
-bool cRowHeapTable::ReadFile(const char * filename, bool with_data_types) {
+bool cRowHeapTable::ReadFile(const char *filename, bool with_data_types) {
     int line_offset;
     constexpr int MAX_LEN = 1024;
     char line[MAX_LEN];
     int records = 0;
     std::ifstream data(filename);
+    int (*func_pointer_map[256])(char *, char *, unsigned int);
+    func_pointer_map['C'] = &loadBytes;
+    func_pointer_map['B'] = &loadByte;
+    func_pointer_map['I'] = &loadInt;
+    func_pointer_map['F'] = &loadFloat;
 
     data.getline(line, MAX_LEN);
     sscanf(line, "RowCount:%d", &records);
@@ -217,26 +222,30 @@ bool cRowHeapTable::ReadFile(const char * filename, bool with_data_types) {
         if (line[0] == 0) {
             continue;
         }
-        int load_int;
-        float load_float;
         int bytes_read;
 
         auto rowPointer = getRowPointer(rowCount);
         if (with_data_types) {
             for (int i = 0; i < cols; ++i) {
-                if (schema->data_types[i] == 'C') {
-                    std::memcpy((rowPointer + attributeOffsets[i]), line + line_offset, schema->attr_sizes[i]);
-                    bytes_read = schema->attr_sizes[i] + 1;
-                } else if (schema->attr_sizes[i] == 1) {
-                    *(uint8_t *) (rowPointer + attributeOffsets[i]) = line[line_offset] - '0';
-                    bytes_read = 2;
-                } else if (schema->data_types[i] == 'I') {
-                    sscanf(line + line_offset, "%d;%n", &load_int, &bytes_read);
-                    *(int *) (rowPointer + attributeOffsets[i]) = load_int;
-                } else {
-                    sscanf(line + line_offset, "%f;%n", &load_float, &bytes_read);
-                    *(float *) (rowPointer + attributeOffsets[i]) = load_float;
-                }
+                bytes_read = (*func_pointer_map[schema->data_types[i]])(
+                        rowPointer + attributeOffsets[i],
+                        line + line_offset,
+                        schema->attr_sizes[i]
+                );
+
+//                if (schema->data_types[i] == 'C') {
+//                    std::memcpy(rowPointer, line + line_offset, schema->attr_sizes[i]);
+//                    bytes_read = schema->attr_sizes[i] + 1;
+//                } else if (schema->data_types[i] == 'B') {
+//                    *(uint8_t *) rowPointer = line[line_offset] - '0';
+//                    bytes_read = 2;
+//                } else if (schema->data_types[i] == 'I') {
+//                    sscanf(line + line_offset, "%d;%n", &load_int, &bytes_read);
+//                    *(int *) rowPointer = load_int;
+//                } else {
+//                    sscanf(line + line_offset, "%f;%n", &load_float, &bytes_read);
+//                    *(float *) rowPointer = load_float;
+//                }
                 line_offset += bytes_read; // add 1 to offset comma
             }
         } else {
@@ -263,7 +272,7 @@ void cRowHeapTable::createHashTableIndex(const int *attr_order) {
     }
 
 
-    int * index_offsets = new int[cols];
+    int *index_offsets = new int[cols];
     auto index_attributes = 0;
     for (int i = 0; i < cols; ++i) {
         if (attr_order[i] > 0) {
@@ -281,7 +290,7 @@ void cRowHeapTable::createHashTableIndex(const int *attr_order) {
 
     hashIndex = new cHashTable<int>(rowCount, NODE_SIZE, keySize, schema->attr_max_values, cols);
     statistics = new cHashTable<int>(rowCount, NODE_SIZE, keySize, schema->attr_max_values, cols);
-    char * key = new char[keySize];
+    char *key = new char[keySize];
     memset(key, 0, keySize);
     for (int i = 0; i < rowCount; ++i) {
         auto p = getRowPointer(i);
@@ -293,11 +302,11 @@ void cRowHeapTable::createHashTableIndex(const int *attr_order) {
         statistics->IncrementData(key);
     }
 
-    delete [] key;
-    delete [] index_offsets;
+    delete[] key;
+    delete[] index_offsets;
 }
 
-bool cRowHeapTable::get(int rowId, char * data) const {
+bool cRowHeapTable::get(int rowId, char *data) const {
     if (rowId > rowCount) {
         return false;
     }
@@ -306,14 +315,23 @@ bool cRowHeapTable::get(int rowId, char * data) const {
     return true;
 }
 
-bool cRowHeapTable::Find(const char * query, Cursor<int> & cursor) const {
+bool cRowHeapTable::Find(const char *query, Cursor<int> &cursor) const {
     if (hashIndex == nullptr || !canUseHashIndex(query)) {
         return false;
     }
     return hashIndex->Select(query, cursor);
 }
 
-float cRowHeapTable::SelectAvg(const char * query) const {
+bool cRowHeapTable::isQueryConstrained(const char * query) const {
+    for (int i = 1; i < schema->attrs_count + 1; ++i) {
+        if (query[i] >= 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+float cRowHeapTable::SelectAvg(const char *query) const {
     auto found = 0;
     size_t col_avg = query[0];
     auto averages = std::vector<float>();
@@ -321,19 +339,11 @@ float cRowHeapTable::SelectAvg(const char * query) const {
         throw std::runtime_error("Calculating average on non-float data");
     }
 
-    float avg = 0 ;
+    float avg = 0;
     float converted = 0;
     auto float_max = std::numeric_limits<float>::max();
 
-    bool is_constrained = false;
-    size_t constrained_col = 0;
-    for (int i = 1; i < schema->attrs_count + 1; ++i) {
-        if (query[i] >= 0) {
-            constrained_col = i;
-            is_constrained = true;
-            break;
-        }
-    }
+    bool is_constrained = isQueryConstrained(query);
 
     if (!is_constrained) {
         found = rowCount;
@@ -355,7 +365,7 @@ float cRowHeapTable::SelectAvg(const char * query) const {
                 if (col_value < 0) {
                     continue;
                 }
-                uint8_t * data = (uint8_t *) row + attributeOffsets[j];
+                uint8_t *data = (uint8_t *) row + attributeOffsets[j];
                 if (*data != col_value) {
                     goto continue_outer;
                 }
@@ -382,5 +392,77 @@ float cRowHeapTable::SelectAvg(const char * query) const {
         return totalAvg;
     }
 
-    return avg / (float)found;
+    return avg / (float) found;
+}
+
+
+float cRowHeapTable::SelectAvgWithIndex(const char *query) const {
+    if (bitmapIndex == nullptr) {
+        throw std::runtime_error("Bitmap index is not initialized");
+    }
+    auto found = 0;
+    float avg = 0;
+    auto mask = bitmapIndex->prepare(query + 1);
+    int rowId = 0;
+    auto averages = std::vector<float>();
+    auto float_max = std::numeric_limits<float>::max();
+    size_t col_avg = query[0];
+    if (schema->data_types[col_avg] != 'F') {
+        throw std::runtime_error("Calculating average on non-float data");
+    }
+
+    do {
+        rowId = bitmapIndex->selectNext(mask, rowId + 1);
+        if (rowId < 0) {
+            continue;
+        }
+        found += 1;
+        auto row = getRowPointer(rowId);
+        auto converted = *(float *) (row + attributeOffsets[col_avg]);
+        if (avg + converted > float_max) {
+            averages.emplace_back(avg);
+            avg = 0;
+        }
+        avg += converted;
+    } while (rowId >= 0);
+    averages.emplace_back(avg);
+
+    if (averages.size() > 1) {
+        float totalAvg = averages[0];
+        for (int i = 1; i < averages.size() - 1; ++i) {
+            auto n = i + 1;
+            totalAvg = ((n - 1) * totalAvg + averages[n - 1]) / n;
+        }
+
+        return totalAvg;
+    }
+
+    delete [] mask;
+    return avg / (float) found;
+}
+
+int cRowHeapTable::loadBytes(char *into, char *from, unsigned int max_len) {
+    std::memcpy(into, from, max_len);
+    return max_len + 1;
+}
+
+int cRowHeapTable::loadFloat(char *into, char *from, unsigned int max_len) {
+    auto offset = 1;
+    while (*(from + offset) != ';')
+        offset += 1;
+    *(float *) into = std::strtof(from, nullptr);
+    return offset + 1;
+}
+
+int cRowHeapTable::loadInt(char *into, char *from, unsigned int max_len) {
+    auto offset = 1;
+    while (*(from + offset) != ';')
+        offset += 1;
+    *(int *) into = (int)std::strtol(from, nullptr, 10);
+    return offset + 1;
+}
+
+int cRowHeapTable::loadByte(char *into, char *from, unsigned int max_len) {
+    *into = (*from) - '0';
+    return 2;
 }

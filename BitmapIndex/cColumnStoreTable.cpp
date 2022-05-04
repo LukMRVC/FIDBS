@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <functional>
 #include <limits>
+#include <cstdlib>
 
 bool cColumnStoreTable::reserve(uint32_t max_capacity) {
     if (mData != nullptr || schema == nullptr || recordSize == 0 || column_offsets == nullptr) return false;
@@ -48,6 +49,15 @@ cColumnStoreTable::~cColumnStoreTable() {
     }
 }
 
+int cColumnStoreTable::isQueryConstrained(const int8_t *query) const {
+    for (int i = 1; i < schema->attrs_count + 1; ++i) {
+        if (query[i] >= 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 double cColumnStoreTable::SelectAvg(const int8_t *query) const {
     if (column_offsets == nullptr) {
         throw std::runtime_error("Column offsets were not set!");
@@ -66,15 +76,8 @@ double cColumnStoreTable::SelectAvg(const int8_t *query) const {
         throw std::runtime_error("Calculating average on non-float data");
     }
 
-    bool is_constrained = false;
-    size_t constrained_col = 0;
-    for (int i = 1; i < schema->attrs_count + 1; ++i) {
-        if (query[i] >= 0) {
-            constrained_col = i;
-            is_constrained = true;
-            break;
-        }
-    }
+    int constrained_col = isQueryConstrained(query);
+    bool is_constrained = constrained_col >= 0;
 
     auto doubleMax = std::numeric_limits<float>::max();
     float converted = 0;
@@ -165,11 +168,17 @@ bool cColumnStoreTable::ReadFile(const char *filename) {
                 *(uint8_t *)colPointer = line[line_offset] - '0';
                 bytes_read = 2; // byte value plus a semilocon
             } else if (schema->data_types[i] == 'I') {
-                sscanf(line + line_offset, "%d;%n", &load_int, &bytes_read);
-                *(int *)colPointer = load_int;
+                auto offset = line_offset + 1;
+                while (*(line + offset) != ';')
+                    offset += 1;
+                bytes_read = offset - line_offset + 1;
+                *(int *)colPointer = (int)std::strtol(line + line_offset, nullptr, 10);
             } else {
-                sscanf(line + line_offset, "%f;%n", &load_float, &bytes_read);
-                *(float *)colPointer = load_float;
+                auto offset = line_offset + 1;
+                while (*(line + offset) != ';')
+                    offset += 1;
+                bytes_read = offset - line_offset + 1;
+                *(float *)colPointer = std::strtof(line + line_offset, nullptr);
             }
             line_offset += bytes_read;
         }
