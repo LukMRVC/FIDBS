@@ -7,7 +7,7 @@ endif()
 
 #set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -O0 -g")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fopt-info-vec-all")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -36,3 +36,4 @@ add_executable(BitmapIndex main.cpp ${CPP_FILES} cRowHeapTable.cpp TableSchema.c
 add_executable(BitmapQuery BitmapQuery.cpp ${CPP_FILES} ${CPP_INDEX_FILES})
 add_executable(HashQuery HashQuery.cpp ${CPP_FILES} ${CPP_INDEX_FILES})
 add_executable(ColumnTable ColumnQuery.cpp ${CPP_FILES} ${CPP_INDEX_FILES} cColumnStoreTable.cpp cColumnStoreTable.h)
+add_executable(ParallelQuery ParallelQuery.cpp ${CPP_FILES} ${CPP_INDEX_FILES})

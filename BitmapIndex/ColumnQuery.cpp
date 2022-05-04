@@ -35,7 +35,7 @@ int main(int args_count, char *args[]) {
     char const *const query_file = args[3];
 
     const TableSchema *schema = TableSchema::getFromFile(schema_file, true);
-    auto query_set = QuerySet::getFromFile(query_file, schema->attrs_count);
+    auto query_set = QuerySet::getFromFile(query_file, schema->attrs_count, true);
 
     cColumnStoreTable columnTable(schema);
     auto dataLoadDuration = timeit([&data_file, &columnTable]() {
